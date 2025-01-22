@@ -106,11 +106,10 @@ function sirec_send_invitation_email($user, $course_id, $custom_message) {
 function sirec_send_sirec_notification($user_id, $course_id) {
     global $wpdb;
     
-    // Implementar aquí la lógica para enviar notificación en el sistema SIREC
-    // Este es un ejemplo básico, ajústalo según tu sistema de notificaciones
+    // Primero guardamos la notificación en nuestra tabla personalizada
     $table_name = $wpdb->prefix . 'sirec_notifications';
     
-    return $wpdb->insert(
+    $db_insert = $wpdb->insert(
         $table_name,
         [
             'user_id' => $user_id,
@@ -124,4 +123,42 @@ function sirec_send_sirec_notification($user_id, $course_id) {
         ],
         ['%d', '%s', '%d', '%s', '%s']
     );
+
+    // Verificamos si BuddyBoss está activo y las funciones están disponibles
+    if (function_exists('bp_notifications_add_notification') && function_exists('bp_core_current_time')) {
+        $notification_args = array(
+            'user_id'           => $user_id,
+            'item_id'           => $course_id,
+            'secondary_item_id' => get_current_user_id(),
+            'component_name'    => 'sirec_courses',
+            'component_action'  => 'new_course_invitation',
+            'date_notified'     => bp_core_current_time(),
+            'is_new'           => 1,
+            'allow_duplicate'   => false
+        );
+
+        $notification_id = bp_notifications_add_notification($notification_args);
+
+        // Verificamos si podemos agregar actividad
+        if (function_exists('bp_activity_add')) {
+            $activity_args = array(
+                'user_id' => $user_id,
+                'action' => sprintf(
+                    'Has sido invitado al curso: <a href="%s">%s</a>',
+                    get_permalink($course_id),
+                    get_the_title($course_id)
+                ),
+                'component' => 'sirec_courses',
+                'type' => 'new_course_invitation',
+                'item_id' => $course_id
+            );
+            
+            bp_activity_add($activity_args);
+        }
+
+        return $db_insert && $notification_id;
+    }
+
+    // Si BuddyBoss no está disponible, solo retornamos el resultado de la inserción en nuestra tabla
+    return $db_insert;
 }

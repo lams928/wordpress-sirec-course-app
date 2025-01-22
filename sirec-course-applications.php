@@ -69,6 +69,15 @@ require_once SIREC_PLUGIN_DIR . 'includes/notifications.php';
 require_once SIREC_PLUGIN_DIR . 'includes/invitation-handler.php';
 
 // Agregar scripts y estilos
+// Agregar al inicio del archivo sirec-course-applications.php, después de la definición del plugin
+add_action('plugins_loaded', function() {
+    if (!function_exists('buddypress')) {
+        add_action('admin_notices', function() {
+            echo '<div class="error"><p>El plugin SIREC Course Applications requiere que BuddyBoss Platform esté instalado y activado.</p></div>';
+        });
+    }
+}, 999);
+
 add_action('admin_enqueue_scripts', 'sirec_admin_scripts');
 
 function sirec_admin_scripts($hook) {
@@ -109,4 +118,48 @@ function sirec_admin_scripts($hook) {
         'ajaxurl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('sirec_nonce')
     ]);
+}
+
+// Agregar después de las otras acciones
+add_action('plugins_loaded', 'sirec_check_buddyboss');
+
+function sirec_check_buddyboss() {
+    if (function_exists('buddypress')) {
+        add_action('bp_setup_components', 'sirec_register_buddyboss_component');
+    }
+}
+
+function sirec_register_buddyboss_component() {
+    if (function_exists('bp_notifications_register_component')) {
+        bp_notifications_register_component(
+            'sirec_courses',
+            array(
+                'format_callback' => 'sirec_format_buddyboss_notifications',
+                'position' => 105
+            )
+        );
+    }
+}
+function sirec_format_buddyboss_notifications($action, $item_id, $secondary_item_id, $total_items, $format = 'string') {
+    switch ($action) {
+        case 'new_course_invitation':
+            $course_title = get_the_title($item_id);
+            $course_link = get_permalink($item_id);
+            
+            if ('string' === $format) {
+                return sprintf(
+                    'Has sido invitado al curso: <a href="%s">%s</a>',
+                    esc_url($course_link),
+                    esc_html($course_title)
+                );
+            } else {
+                return array(
+                    'text' => sprintf('Has sido invitado al curso: %s', $course_title),
+                    'link' => $course_link
+                );
+            }
+            break;
+    }
+    
+    return $action;
 }
