@@ -1,0 +1,21 @@
+.sirec-application-row {
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+}
+
+.sirec-status-pending {
+    color: #f90;
+}
+
+.sirec-status-approved {
+    color: #0a0;
+}
+
+.sirec-status-rejected {
+    color: #a00;
+}
+
+.sirec-action-button {
+    margin: 0 5px;
+}
