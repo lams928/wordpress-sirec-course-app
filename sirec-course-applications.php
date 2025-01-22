@@ -3,7 +3,7 @@
 Plugin Name: SIREC Course Applications
 Description: Sistema de gestión de solicitudes de cursos para SIREC
 Version: 1.0
-Author: Tu Nombre
+Author: Plugin SIREC 
 */
 
 if (!defined('ABSPATH')) exit;
@@ -66,15 +66,18 @@ require_once SIREC_PLUGIN_DIR . 'includes/applications-list.php';
 require_once SIREC_PLUGIN_DIR . 'includes/form-handler.php';
 require_once SIREC_PLUGIN_DIR . 'includes/enrollment-handler.php';
 require_once SIREC_PLUGIN_DIR . 'includes/notifications.php';
+require_once SIREC_PLUGIN_DIR . 'includes/invitation-handler.php';
 
 // Agregar scripts y estilos
 add_action('admin_enqueue_scripts', 'sirec_admin_scripts');
 
 function sirec_admin_scripts($hook) {
-    if ('toplevel_page_sirec-applications' !== $hook) {
+    // Modificar la condición para incluir también la página de nueva invitación
+    if (!in_array($hook, ['toplevel_page_sirec-applications', 'solicitudes-sirec_page_sirec-new-invitation'])) {
         return;
     }
 
+    // Estilos y scripts existentes
     wp_enqueue_style('sirec-admin-style', 
         SIREC_PLUGIN_URL . 'assets/css/admin-style.css', 
         [], 
@@ -85,6 +88,20 @@ function sirec_admin_scripts($hook) {
         SIREC_PLUGIN_URL . 'assets/js/admin-script.js', 
         ['jquery'], 
         '1.0.0', 
+        true
+    );
+
+    // Agregar Select2
+    wp_enqueue_style('select2', 
+        'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css', 
+        [], 
+        '4.1.0'
+    );
+    
+    wp_enqueue_script('select2', 
+        'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js', 
+        ['jquery'], 
+        '4.1.0', 
         true
     );
 
