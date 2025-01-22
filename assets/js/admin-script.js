@@ -29,19 +29,29 @@ jQuery(document).ready(function($) {
             url: sirecAjax.ajaxurl,
             type: 'POST',
             data: {
-                action: 'sirec_handle_application',
+                action: 'sirec_send_invitations',
                 nonce: sirecAjax.nonce,
-                application_id: applicationId,
-                decision: decision,
-                notes: notes
+                course_id: courseId,
+                selected_users: selectedUsers,
+                message: message
             },
             success: function(response) {
-                if (response.success) {
-                    alert('Solicitud procesada correctamente');
-                    loadApplications();
+                if(response.success) {
+                    let mensaje = response.data.message;
+                    if(response.data.errors && response.data.errors.length > 0) {
+                        mensaje += '\n\nDetalles de errores:\n' + response.data.errors.join('\n');
+                    }
+                    $results.html('<div class="notice notice-info"><p>' + mensaje + '</p></div>');
                 } else {
-                    alert('Error al procesar la solicitud');
+                    $results.html('<div class="notice notice-error"><p>Error: ' + response.data + '</p></div>');
                 }
+                console.log('Respuesta completa:', response); // Para debugging
+            },
+            error: function(xhr, status, error) {
+                console.error('Error Ajax:', error);
+                console.log('Estado:', status);
+                console.log('Respuesta:', xhr.responseText);
+                $results.html('<div class="notice notice-error"><p>Error en la solicitud: ' + error + '</p></div>');
             }
         });
     });

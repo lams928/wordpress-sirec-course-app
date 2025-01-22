@@ -6,15 +6,24 @@ add_action('wp_ajax_sirec_send_invitations', 'sirec_handle_send_invitations');
 function sirec_handle_send_invitations() {
     check_ajax_referer('sirec_invitation_nonce', 'nonce');
     
+    // Activar logging
+    error_log('Iniciando proceso de envío de invitaciones');
+    
     if (!current_user_can('edit_iiiccab')) {
+        error_log('Error: Usuario sin permisos necesarios');
         wp_send_json_error('No tienes permisos para enviar invitaciones.');
     }
     
     $course_id = intval($_POST['course_id']);
     $custom_message = sanitize_textarea_field($_POST['message']);
-    $selected_users = array_map('intval', $_POST['selected_users']);
+    $selected_users = isset($_POST['selected_users']) ? $_POST['selected_users'] : [];
+    
+    // Log datos recibidos
+    error_log('Datos recibidos - Course ID: ' . $course_id);
+    error_log('Usuarios seleccionados: ' . print_r($selected_users, true));
     
     if(empty($selected_users)) {
+        error_log('Error: No se seleccionaron usuarios');
         wp_send_json_error('Debes seleccionar al menos un usuario.');
     }
     
@@ -23,28 +32,45 @@ function sirec_handle_send_invitations() {
     
     foreach($selected_users as $user_id) {
         $user = get_user_by('id', $user_id);
-        if(!$user) continue;
-        
-        // Enviar email
-        $email_sent = sirec_send_invitation_email($user, $course_id, $custom_message);
-        
-        // Enviar notificación SIREC
-        $notification_sent = sirec_send_sirec_notification($user_id, $course_id);
-        
-        if($email_sent && $notification_sent) {
-            $sent_count++;
-        } else {
-            $errors[] = $user->user_email;
+        if(!$user) {
+            error_log("Error: Usuario no encontrado - ID: $user_id");
+            $errors[] = "Usuario ID $user_id no encontrado";
+            continue;
         }
+        
+        error_log("Intentando enviar invitación a: " . $user->user_email);
+        
+        // Intento de envío de email
+        $email_sent = sirec_send_invitation_email($user, $course_id, $custom_message);
+        if(!$email_sent) {
+            error_log("Error al enviar email a: " . $user->user_email);
+            $errors[] = "Error enviando email a " . $user->user_email;
+            continue;
+        }
+        
+        // Intento de envío de notificación
+        $notification_sent = sirec_send_sirec_notification($user_id, $course_id);
+        if(!$notification_sent) {
+            error_log("Error al enviar notificación a: " . $user->user_email);
+            $errors[] = "Error enviando notificación a " . $user->user_email;
+            continue;
+        }
+        
+        $sent_count++;
     }
     
     $response = [
+        'success' => true,
+        'sent_count' => $sent_count,
+        'errors' => $errors,
         'message' => sprintf(
-            'Invitaciones enviadas exitosamente a %d usuarios.%s',
+            'Invitaciones enviadas exitosamente a %d usuarios. %s',
             $sent_count,
-            !empty($errors) ? ' Errores: ' . implode(', ', $errors) : ''
+            !empty($errors) ? 'Errores: ' . implode(', ', $errors) : ''
         )
     ];
+    
+    error_log("Resumen del proceso: " . print_r($response, true));
     
     wp_send_json_success($response);
 }
