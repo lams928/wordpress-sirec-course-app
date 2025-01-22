@@ -22,48 +22,69 @@ function sirec_handle_send_invitations() {
         wp_send_json_error('Debes seleccionar al menos un usuario.');
     }
     
-    $sent_count = 0;
-    $errors = [];
+    $notification_sent_count = 0;
+    $email_sent_count = 0;
+    $notification_errors = [];
+    $email_errors = [];
     
     foreach($selected_users as $user_id) {
         $user = get_user_by('id', $user_id);
         if(!$user) {
             error_log("Error: Usuario no encontrado - ID: $user_id");
-            $errors[] = "Usuario ID $user_id no encontrado";
+            $notification_errors[] = "Usuario ID $user_id no encontrado";
+            $email_errors[] = "Usuario ID $user_id no encontrado";
             continue;
         }
         
-        // Primero enviamos la notificación
+        // Enviar notificación
         $notification_sent = sirec_send_sirec_notification($user_id, $course_id);
-        if(!$notification_sent) {
+        if($notification_sent) {
+            $notification_sent_count++;
+        } else {
             error_log("Error al enviar notificación a: " . $user->user_email);
-            $errors[] = "Error enviando notificación a " . $user->user_email;
-            // No usamos continue aquí para permitir el envío del email
+            $notification_errors[] = "Error enviando notificación a " . $user->user_email;
         }
         
-        // Luego intentamos enviar el email
+        // Enviar email
         $email_sent = sirec_send_invitation_email($user, $course_id, $custom_message);
-        if(!$email_sent) {
+        if($email_sent) {
+            $email_sent_count++;
+        } else {
             error_log("Error al enviar email a: " . $user->user_email);
-            $errors[] = "Error enviando email a " . $user->user_email;
-            // No usamos continue aquí
-        }
-        
-        // Si al menos uno de los dos (notificación o email) se envió, contamos como éxito
-        if($notification_sent || $email_sent) {
-            $sent_count++;
+            $email_errors[] = "Error enviando email a " . $user->user_email;
         }
     }
     
+    // Preparar mensajes detallados
+    $notification_message = sprintf(
+        'Notificaciones: %d enviadas exitosamente.',
+        $notification_sent_count,
+        count($selected_users),
+        !empty($notification_errors) ? 'Errores: ' . implode(', ', $notification_errors) : ''
+    );
+    
+    $email_message = sprintf(
+        'Correos electrónicos: %d enviados exitosamente.',
+        $email_sent_count,
+        count($selected_users),
+        !empty($email_errors) ? 'Errores: ' . implode(', ', $email_errors) : ''
+    );
+    
     $response = [
-        'success' => true,
-        'sent_count' => $sent_count,
-        'errors' => $errors,
-        'message' => sprintf(
-            'Invitaciones enviadas exitosamente a %d usuarios. %s',
-            $sent_count,
-            !empty($errors) ? 'Errores: ' . implode(', ', $errors) : ''
-        )
+        'success' => ($notification_sent_count > 0 || $email_sent_count > 0),
+        'notification_stats' => [
+            'sent_count' => $notification_sent_count,
+            'total_attempts' => count($selected_users),
+            'errors' => $notification_errors,
+            'message' => $notification_message
+        ],
+        'email_stats' => [
+            'sent_count' => $email_sent_count,
+            'total_attempts' => count($selected_users),
+            'errors' => $email_errors,
+            'message' => $email_message
+        ],
+        'message' => $notification_message . "\n" . $email_message
     ];
     
     wp_send_json_success($response);

@@ -103,9 +103,21 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 if(response.success) {
-                    $results.html('<div class="notice notice-success"><p>' + response.data.message + '</p></div>');
+                    let resultHtml = '<div class="notice notice-info">';
+                    
+                    // Mostrar estadísticas de notificaciones
+                    resultHtml += '<p><strong>Notificaciones:</strong><br>';
+                    resultHtml += response.data.notification_stats.message + '</p>';
+                    
+                    // Mostrar estadísticas de correos
+                    resultHtml += '<p><strong>Correos Electrónicos:</strong><br>';
+                    resultHtml += response.data.email_stats.message + '</p>';
+                    
+                    resultHtml += '</div>';
+                    
+                    $('#invitation-results').html(resultHtml);
                 } else {
-                    $results.html('<div class="notice notice-error"><p>' + response.data + '</p></div>');
+                    $('#invitation-results').html('<div class="notice notice-error"><p>' + response.data + '</p></div>');
                 }
             },
             error: function() {
