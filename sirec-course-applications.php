@@ -129,37 +129,34 @@ function sirec_check_buddyboss() {
     }
 }
 
+add_action('bp_setup_components', 'sirec_register_buddyboss_component', 10);
 function sirec_register_buddyboss_component() {
     if (function_exists('bp_notifications_register_component')) {
-        bp_notifications_register_component(
-            'sirec_courses',
-            array(
-                'format_callback' => 'sirec_format_buddyboss_notifications',
-                'position' => 105
-            )
-        );
+        bp_notifications_register_component('sirec_courses');
     }
 }
+
+// Asegúrate de que esta función se ejecute temprano
 function sirec_format_buddyboss_notifications($action, $item_id, $secondary_item_id, $total_items, $format = 'string') {
-    switch ($action) {
-        case 'new_course_invitation':
-            $course_title = get_the_title($item_id);
-            $course_link = get_permalink($item_id);
-            
-            if ('string' === $format) {
-                return sprintf(
-                    'Has sido invitado al curso: <a href="%s">%s</a>',
-                    esc_url($course_link),
-                    esc_html($course_title)
-                );
-            } else {
-                return array(
-                    'text' => sprintf('Has sido invitado al curso: %s', $course_title),
-                    'link' => $course_link
-                );
-            }
-            break;
+    if ($action !== 'new_course_invitation') {
+        return $action;
     }
+
+    $course_title = get_the_title($item_id);
+    $course_link = get_permalink($item_id);
     
-    return $action;
+    if ('string' === $format) {
+        $return = sprintf(
+            __('Has sido invitado al curso: <a href="%s">%s</a>', 'sirec'),
+            esc_url($course_link),
+            esc_html($course_title)
+        );
+    } else {
+        $return = array(
+            'text' => sprintf(__('Has sido invitado al curso: %s', 'sirec'), $course_title),
+            'link' => $course_link
+        );
+    }
+
+    return $return;
 }

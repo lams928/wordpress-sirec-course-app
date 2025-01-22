@@ -6,7 +6,6 @@ add_action('wp_ajax_sirec_send_invitations', 'sirec_handle_send_invitations');
 function sirec_handle_send_invitations() {
     check_ajax_referer('sirec_invitation_nonce', 'nonce');
     
-    // Activar logging
     error_log('Iniciando proceso de envío de invitaciones');
     
     if (!current_user_can('edit_iiiccab')) {
@@ -17,10 +16,6 @@ function sirec_handle_send_invitations() {
     $course_id = intval($_POST['course_id']);
     $custom_message = sanitize_textarea_field($_POST['message']);
     $selected_users = isset($_POST['selected_users']) ? $_POST['selected_users'] : [];
-    
-    // Log datos recibidos
-    error_log('Datos recibidos - Course ID: ' . $course_id);
-    error_log('Usuarios seleccionados: ' . print_r($selected_users, true));
     
     if(empty($selected_users)) {
         error_log('Error: No se seleccionaron usuarios');
@@ -38,21 +33,19 @@ function sirec_handle_send_invitations() {
             continue;
         }
         
-        error_log("Intentando enviar invitación a: " . $user->user_email);
-        
-        // Intento de envío de email
-        $email_sent = sirec_send_invitation_email($user, $course_id, $custom_message);
-        if(!$email_sent) {
-            error_log("Error al enviar email a: " . $user->user_email);
-            $errors[] = "Error enviando email a " . $user->user_email;
-            continue;
-        }
-        
-        // Intento de envío de notificación
+        // Primero intentamos enviar la notificación
         $notification_sent = sirec_send_sirec_notification($user_id, $course_id);
         if(!$notification_sent) {
             error_log("Error al enviar notificación a: " . $user->user_email);
             $errors[] = "Error enviando notificación a " . $user->user_email;
+            continue;
+        }
+        
+        // Luego intentamos enviar el email
+        $email_sent = sirec_send_invitation_email($user, $course_id, $custom_message);
+        if(!$email_sent) {
+            error_log("Error al enviar email a: " . $user->user_email);
+            $errors[] = "Error enviando email a " . $user->user_email;
             continue;
         }
         
@@ -69,8 +62,6 @@ function sirec_handle_send_invitations() {
             !empty($errors) ? 'Errores: ' . implode(', ', $errors) : ''
         )
     ];
-    
-    error_log("Resumen del proceso: " . print_r($response, true));
     
     wp_send_json_success($response);
 }
@@ -104,61 +95,64 @@ function sirec_send_invitation_email($user, $course_id, $custom_message) {
 }
 
 function sirec_send_sirec_notification($user_id, $course_id) {
-    global $wpdb;
-    
-    // Primero guardamos la notificación en nuestra tabla personalizada
-    $table_name = $wpdb->prefix . 'sirec_notifications';
-    
-    $db_insert = $wpdb->insert(
-        $table_name,
-        [
-            'user_id' => $user_id,
-            'type' => 'course_invitation',
-            'reference_id' => $course_id,
-            'message' => sprintf(
-                'Has sido invitado al curso: %s',
-                get_the_title($course_id)
-            ),
-            'created_at' => current_time('mysql')
-        ],
-        ['%d', '%s', '%d', '%s', '%s']
-    );
-
-    // Verificamos si BuddyBoss está activo y las funciones están disponibles
-    if (function_exists('bp_notifications_add_notification') && function_exists('bp_core_current_time')) {
-        $notification_args = array(
-            'user_id'           => $user_id,
-            'item_id'           => $course_id,
-            'secondary_item_id' => get_current_user_id(),
-            'component_name'    => 'sirec_courses',
-            'component_action'  => 'new_course_invitation',
-            'date_notified'     => bp_core_current_time(),
-            'is_new'           => 1,
-            'allow_duplicate'   => false
-        );
-
-        $notification_id = bp_notifications_add_notification($notification_args);
-
-        // Verificamos si podemos agregar actividad
-        if (function_exists('bp_activity_add')) {
-            $activity_args = array(
-                'user_id' => $user_id,
-                'action' => sprintf(
-                    'Has sido invitado al curso: <a href="%s">%s</a>',
-                    get_permalink($course_id),
-                    get_the_title($course_id)
-                ),
-                'component' => 'sirec_courses',
-                'type' => 'new_course_invitation',
-                'item_id' => $course_id
-            );
-            
-            bp_activity_add($activity_args);
-        }
-
-        return $db_insert && $notification_id;
+    // Verificar si BuddyPress está activo y el componente de notificaciones está disponible
+    if (!function_exists('bp_is_active') || !bp_is_active('notifications')) {
+        error_log('BuddyBoss notifications no está disponible o activo');
+        return false;
     }
 
-    // Si BuddyBoss no está disponible, solo retornamos el resultado de la inserción en nuestra tabla
-    return $db_insert;
+    // Obtener información del curso
+    $course_title = get_the_title($course_id);
+    $course_link = get_permalink($course_id);
+
+    // Preparar los argumentos de la notificación
+    $notification_args = array(
+        'user_id'           => $user_id,
+        'item_id'           => $course_id,
+        'secondary_item_id' => get_current_user_id(),
+        'component_name'    => 'sirec_courses',
+        'component_action'  => 'new_course_invitation',
+        'date_notified'     => bp_core_current_time(),
+        'is_new'           => 1,
+        'allow_duplicate'   => true
+    );
+
+    // Intentar agregar la notificación
+    $notification_id = bp_notifications_add_notification($notification_args);
+
+    if (!$notification_id) {
+        error_log('Error al crear la notificación en BuddyBoss para el usuario ' . $user_id);
+        return false;
+    }
+
+    // Agregar entrada en la actividad si está disponible
+    if (bp_is_active('activity')) {
+        $activity_args = array(
+            'user_id'      => $user_id,
+            'component'    => 'sirec_courses',
+            'type'         => 'new_course_invitation',
+            'primary_link' => $course_link,
+            'item_id'      => $course_id,
+            'action'       => sprintf(
+                __('Has sido invitado al curso: <a href="%s">%s</a>', 'sirec'),
+                esc_url($course_link),
+                esc_html($course_title)
+            ),
+            'hide_sitewide' => false
+        );
+        
+        $activity_id = bp_activity_add($activity_args);
+        
+        if (!$activity_id) {
+            error_log('Error al crear la actividad en BuddyBoss');
+        }
+    }
+
+    // Forzar actualización de la caché de notificaciones
+    wp_cache_delete($user_id, 'bp_notifications_unread_count');
+    
+    // Disparar acción personalizada para la notificación
+    do_action('sirec_after_course_invitation_notification', $user_id, $course_id, $notification_id);
+
+    return true;
 }
