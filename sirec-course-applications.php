@@ -67,6 +67,7 @@ require_once SIREC_PLUGIN_DIR . 'includes/form-handler.php';
 require_once SIREC_PLUGIN_DIR . 'includes/enrollment-handler.php';
 require_once SIREC_PLUGIN_DIR . 'includes/notifications.php';
 require_once SIREC_PLUGIN_DIR . 'includes/invitation-handler.php';
+require_once SIREC_PLUGIN_DIR . 'includes/class-bp-sirec-notification.php';
 
 // Agregar scripts y estilos
 // Agregar al inicio del archivo sirec-course-applications.php, después de la definición del plugin
@@ -130,6 +131,13 @@ function sirec_check_buddyboss() {
 }
 
 add_action('bp_setup_components', 'sirec_register_buddyboss_component', 10);
+add_action('bp_init', function() {
+    if (class_exists('BP_SIREC_Notification')) {
+        BP_SIREC_Notification::instance();
+    }
+});
+
+
 function sirec_register_buddyboss_component() {
     if (function_exists('bp_notifications_register_component')) {
         bp_notifications_register_component('sirec_courses');

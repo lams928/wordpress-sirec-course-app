@@ -42,12 +42,12 @@ function sirec_handle_send_invitations() {
         }
         
         // Luego intentamos enviar el email
-        $email_sent = sirec_send_invitation_email($user, $course_id, $custom_message);
-        if(!$email_sent) {
-            error_log("Error al enviar email a: " . $user->user_email);
-            $errors[] = "Error enviando email a " . $user->user_email;
-            continue;
-        }
+        // $email_sent = sirec_send_invitation_email($user, $course_id, $custom_message);
+        // if(!$email_sent) {
+        //     error_log("Error al enviar email a: " . $user->user_email);
+        //     $errors[] = "Error enviando email a " . $user->user_email;
+        //     continue;
+        // }
         
         $sent_count++;
     }
@@ -95,18 +95,13 @@ function sirec_send_invitation_email($user, $course_id, $custom_message) {
 }
 
 function sirec_send_sirec_notification($user_id, $course_id) {
-    // Verificar si BuddyPress está activo y el componente de notificaciones está disponible
     if (!function_exists('bp_is_active') || !bp_is_active('notifications')) {
         error_log('BuddyBoss notifications no está disponible o activo');
         return false;
     }
 
-    // Obtener información del curso
-    $course_title = get_the_title($course_id);
-    $course_link = get_permalink($course_id);
-
-    // Preparar los argumentos de la notificación
-    $notification_args = array(
+    // Agregar notificación
+    $notification_id = bp_notifications_add_notification(array(
         'user_id'           => $user_id,
         'item_id'           => $course_id,
         'secondary_item_id' => get_current_user_id(),
@@ -114,20 +109,19 @@ function sirec_send_sirec_notification($user_id, $course_id) {
         'component_action'  => 'new_course_invitation',
         'date_notified'     => bp_core_current_time(),
         'is_new'           => 1,
-        'allow_duplicate'   => true
-    );
-
-    // Intentar agregar la notificación
-    $notification_id = bp_notifications_add_notification($notification_args);
+    ));
 
     if (!$notification_id) {
         error_log('Error al crear la notificación en BuddyBoss para el usuario ' . $user_id);
         return false;
     }
 
-    // Agregar entrada en la actividad si está disponible
+    // Agregar actividad si está disponible
     if (bp_is_active('activity')) {
-        $activity_args = array(
+        $course_title = get_the_title($course_id);
+        $course_link = get_permalink($course_id);
+        
+        bp_activity_add(array(
             'user_id'      => $user_id,
             'component'    => 'sirec_courses',
             'type'         => 'new_course_invitation',
@@ -139,19 +133,12 @@ function sirec_send_sirec_notification($user_id, $course_id) {
                 esc_html($course_title)
             ),
             'hide_sitewide' => false
-        );
-        
-        $activity_id = bp_activity_add($activity_args);
-        
-        if (!$activity_id) {
-            error_log('Error al crear la actividad en BuddyBoss');
-        }
+        ));
     }
 
-    // Forzar actualización de la caché de notificaciones
+    // Limpiar caché
     wp_cache_delete($user_id, 'bp_notifications_unread_count');
     
-    // Disparar acción personalizada para la notificación
     do_action('sirec_after_course_invitation_notification', $user_id, $course_id, $notification_id);
 
     return true;
