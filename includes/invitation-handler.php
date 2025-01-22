@@ -33,23 +33,26 @@ function sirec_handle_send_invitations() {
             continue;
         }
         
-        // Primero intentamos enviar la notificación
+        // Primero enviamos la notificación
         $notification_sent = sirec_send_sirec_notification($user_id, $course_id);
         if(!$notification_sent) {
             error_log("Error al enviar notificación a: " . $user->user_email);
             $errors[] = "Error enviando notificación a " . $user->user_email;
-            continue;
+            // No usamos continue aquí para permitir el envío del email
         }
         
         // Luego intentamos enviar el email
-        // $email_sent = sirec_send_invitation_email($user, $course_id, $custom_message);
-        // if(!$email_sent) {
-        //     error_log("Error al enviar email a: " . $user->user_email);
-        //     $errors[] = "Error enviando email a " . $user->user_email;
-        //     continue;
-        // }
+        $email_sent = sirec_send_invitation_email($user, $course_id, $custom_message);
+        if(!$email_sent) {
+            error_log("Error al enviar email a: " . $user->user_email);
+            $errors[] = "Error enviando email a " . $user->user_email;
+            // No usamos continue aquí
+        }
         
-        $sent_count++;
+        // Si al menos uno de los dos (notificación o email) se envió, contamos como éxito
+        if($notification_sent || $email_sent) {
+            $sent_count++;
+        }
     }
     
     $response = [
