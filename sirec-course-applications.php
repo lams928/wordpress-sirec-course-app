@@ -45,6 +45,19 @@ function sirec_activate_plugin() {
 
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql);
+
+
+    // Agregar capacidades grant 
+    $role = get_role('editor_iiiccab');
+    if($role) {
+        $role->add_cap('edit_iiiccab');
+    } else {
+        // Si el rol no existe, lo creamos
+        add_role('editor_iiiccab', 'Editor IIICCAB', array(
+            'read' => true,
+            'edit_iiiccab' => true
+        ));
+    }
 }
 
 // Cargar archivos del plugin
