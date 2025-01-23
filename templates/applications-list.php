@@ -24,7 +24,6 @@
             </tr>
         </thead>
         <tbody id="applications-list">
-            <!-- Los datos se cargan vía AJAX -->
         </tbody>
     </table>
 </div>

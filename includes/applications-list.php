@@ -14,7 +14,11 @@ class SIREC_Applications_List {
         $offset = ($page - 1) * $per_page;
         
         $applications = $wpdb->get_results(
-            "SELECT * FROM $table_name $where 
+            "SELECT a.*, c.post_title as course_name 
+            FROM $table_name a 
+            LEFT JOIN {$wpdb->posts} c ON a.course_id = c.ID 
+            WHERE c.post_type = 'eb_course' 
+            $where 
             ORDER BY submission_date DESC 
             LIMIT $per_page OFFSET $offset"
         );
@@ -28,9 +32,14 @@ class SIREC_Applications_List {
         
         $where = '';
         if ($status !== 'all') {
-            $where = $wpdb->prepare(" WHERE status = %s", $status);
+            $where = $wpdb->prepare(" AND a.status = %s", $status);
         }
         
-        return $wpdb->get_var("SELECT COUNT(*) FROM $table_name $where");
+        return $wpdb->get_var(
+            "SELECT COUNT(*) 
+            FROM $table_name a 
+            LEFT JOIN {$wpdb->posts} c ON a.course_id = c.ID 
+            WHERE c.post_type = 'eb_course' $where"
+        );
     }
 }

@@ -36,7 +36,6 @@ function sirec_handle_send_invitations() {
             continue;
         }
         
-        // Enviar notificación
         $notification_sent = sirec_send_sirec_notification($user_id, $course_id);
         if($notification_sent) {
             $notification_sent_count++;
@@ -45,7 +44,6 @@ function sirec_handle_send_invitations() {
             $notification_errors[] = "Error enviando notificación a " . $user->user_email;
         }
         
-        // Enviar email
         $email_sent = sirec_send_invitation_email($user, $course_id, $custom_message);
         if($email_sent) {
             $email_sent_count++;
@@ -55,7 +53,6 @@ function sirec_handle_send_invitations() {
         }
     }
     
-    // Preparar mensajes detallados
     $notification_message = sprintf(
         'Notificaciones: %d enviadas exitosamente.',
         $notification_sent_count,
@@ -124,7 +121,6 @@ function sirec_send_sirec_notification($user_id, $course_id) {
         return false;
     }
 
-    // Agregar notificación
     $notification_id = bp_notifications_add_notification(array(
         'user_id'           => $user_id,
         'item_id'           => $course_id,
@@ -140,7 +136,6 @@ function sirec_send_sirec_notification($user_id, $course_id) {
         return false;
     }
 
-    // Agregar actividad si está disponible
     if (bp_is_active('activity')) {
         $course_title = get_the_title($course_id);
         $course_link = get_permalink($course_id);
@@ -160,7 +155,6 @@ function sirec_send_sirec_notification($user_id, $course_id) {
         ));
     }
 
-    // Limpiar caché
     wp_cache_delete($user_id, 'bp_notifications_unread_count');
     
     do_action('sirec_after_course_invitation_notification', $user_id, $course_id, $notification_id);

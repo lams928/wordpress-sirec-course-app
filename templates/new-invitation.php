@@ -11,16 +11,11 @@
             <tr>
                 <th><label for="course_id">Seleccionar Curso</label></th>
                 <td>
-                    <select name="course_id" id="course_id" required>
-                        <option value="">Seleccione un curso...</option>
-                        <?php
-                        $courses = get_posts([
-                            'post_type' => 'sfwd-courses',
-                            'numberposts' => -1,
-                            'orderby' => 'title',
-                            'order' => 'ASC'
-                        ]);
-                        
+                <select name="course_id" id="course_id" required>
+                    <option value="">Seleccione un curso...</option>
+                    <?php
+                    $courses = sirec_get_edwiser_courses();
+                    if (!empty($courses)) {
                         foreach($courses as $course) {
                             printf(
                                 '<option value="%d">%s</option>',
@@ -28,8 +23,11 @@
                                 esc_html($course->post_title)
                             );
                         }
-                        ?>
-                    </select>
+                    } else {
+                        echo '<option value="">No hay cursos disponibles</option>';
+                    }
+                    ?>
+                </select>
                 </td>
             </tr>
 
@@ -74,7 +72,6 @@
 
 <script>
 jQuery(document).ready(function($) {
-    // Inicializar Select2 para mejor experiencia de selección
     $('#selected_users').select2({
         placeholder: 'Selecciona uno o varios usuarios...',
         width: '100%'
@@ -99,17 +96,15 @@ jQuery(document).ready(function($) {
                 nonce: $('#invitation_nonce').val(),
                 course_id: $('#course_id').val(),
                 message: $('#invitation_message').val(),
-                selected_users: $('#selected_users').val() // Agregar los usuarios seleccionados
+                selected_users: $('#selected_users').val() 
             },
             success: function(response) {
                 if(response.success) {
                     let resultHtml = '<div class="notice notice-info">';
                     
-                    // Mostrar estadísticas de notificaciones
                     resultHtml += '<p><strong>Notificaciones:</strong><br>';
                     resultHtml += response.data.notification_stats.message + '</p>';
                     
-                    // Mostrar estadísticas de correos
                     resultHtml += '<p><strong>Correos Electrónicos:</strong><br>';
                     resultHtml += response.data.email_stats.message + '</p>';
                     

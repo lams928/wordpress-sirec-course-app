@@ -20,14 +20,12 @@ class BP_SIREC_Notification extends BP_Core_Notification_Abstract {
     }
 
     public function load() {
-        // Register notification group
         $this->register_notification_group(
             'sirec_courses',
             esc_html__('Invitaciones a Cursos', 'sirec'),
             esc_html__('Notificaciones de SIREC', 'sirec')
         );
 
-        // Register notification type
         $this->register_notification_type(
             'new_course_invitation',
             esc_html__('Invitación a Curso', 'sirec'),
@@ -35,14 +33,12 @@ class BP_SIREC_Notification extends BP_Core_Notification_Abstract {
             'sirec_courses'
         );
 
-        // Register notification
         $this->register_notification(
             'sirec_courses',
             'new_course_invitation',
             'new_course_invitation'
         );
 
-        // Register notification filter
         $this->register_notification_filter(
             __('Invitaciones SIREC', 'sirec'),
             array('new_course_invitation'),

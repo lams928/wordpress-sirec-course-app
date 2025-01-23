@@ -17,7 +17,6 @@ jQuery(document).ready(function($) {
         });
     }
     
-    // Manejador de aprobación/rechazo
     $(document).on('click', '.application-action', function(e) {
         e.preventDefault();
         
@@ -45,7 +44,7 @@ jQuery(document).ready(function($) {
                 } else {
                     $results.html('<div class="notice notice-error"><p>Error: ' + response.data + '</p></div>');
                 }
-                console.log('Respuesta completa:', response); // Para debugging
+                console.log('Respuesta completa:', response); 
             },
             error: function(xhr, status, error) {
                 console.error('Error Ajax:', error);
@@ -56,12 +55,10 @@ jQuery(document).ready(function($) {
         });
     });
     
-    // Filtrado
     $('#filter-submit').on('click', function() {
         const status = $('#filter-status').val();
         loadApplications(status);
     });
     
-    // Carga inicial
     loadApplications();
 });

@@ -1,18 +1,17 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-// Agregar menú al panel de administración
 add_action('admin_menu', 'sirec_add_admin_menu');
 
 function sirec_add_admin_menu() {
     add_menu_page(
-        'Gestión de Solicitudes', // Título de la página
-        'Solicitudes SIREC', // Título del menú
-        'edit_iiiccab', // Capacidad requerida
-        'sirec-applications', // Slug del menú
-        'sirec_applications_page', // Función que muestra la página
-        'dashicons-clipboard', // Icono
-        30 // Posición
+        'Gestión de Solicitudes', 
+        'Solicitudes SIREC', 
+        'edit_iiiccab', 
+        'sirec-applications', 
+        'sirec_applications_page',
+        'dashicons-clipboard',
+        30 
     );
 
     add_submenu_page(

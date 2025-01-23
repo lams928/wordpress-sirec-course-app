@@ -40,12 +40,10 @@ function sirec_handle_application() {
             $application_id
         ));
         
-        // Matricular en LearnDash y Moodle
         $enrollment = new SIREC_Enrollment_Handler();
         $enrollment->process_enrollment($application);
     }
     
-    // Enviar notificación
     SIREC_Notifications::send_application_notification($application_id, $decision);
     
     wp_send_json_success('Solicitud procesada correctamente.');

@@ -8,15 +8,12 @@ Author: Plugin SIREC
 
 if (!defined('ABSPATH')) exit;
 
-// Constantes del plugin
 define('SIREC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SIREC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
-// Activación del plugin
 register_activation_hook(__FILE__, 'sirec_activate_plugin');
 
 function sirec_activate_plugin() {
-    // Crear tabla de solicitudes
     global $wpdb;
     
     $table_name = $wpdb->prefix . 'course_applications';
@@ -46,13 +43,10 @@ function sirec_activate_plugin() {
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql);
 
-
-    // Agregar capacidades grant 
     $role = get_role('editor_iiiccab');
     if($role) {
         $role->add_cap('edit_iiiccab');
     } else {
-        // Si el rol no existe, lo creamos
         add_role('editor_iiiccab', 'Editor IIICCAB', array(
             'read' => true,
             'edit_iiiccab' => true
@@ -60,7 +54,6 @@ function sirec_activate_plugin() {
     }
 }
 
-// Cargar archivos del plugin
 require_once SIREC_PLUGIN_DIR . 'includes/admin-menu.php';
 require_once SIREC_PLUGIN_DIR . 'includes/applications-list.php';
 require_once SIREC_PLUGIN_DIR . 'includes/form-handler.php';
@@ -69,25 +62,66 @@ require_once SIREC_PLUGIN_DIR . 'includes/notifications.php';
 require_once SIREC_PLUGIN_DIR . 'includes/invitation-handler.php';
 require_once SIREC_PLUGIN_DIR . 'includes/class-bp-sirec-notification.php';
 
-// Agregar scripts y estilos
-// Agregar al inicio del archivo sirec-course-applications.php, después de la definición del plugin
 add_action('plugins_loaded', function() {
-    if (!function_exists('buddypress')) {
-        add_action('admin_notices', function() {
-            echo '<div class="error"><p>El plugin SIREC Course Applications requiere que BuddyBoss Platform esté instalado y activado.</p></div>';
-        });
+    if (!sirec_check_dependencies()) {
+        return;
     }
-}, 999);
+    
+    require_once SIREC_PLUGIN_DIR . 'includes/admin-menu.php';
+    require_once SIREC_PLUGIN_DIR . 'includes/applications-list.php';
+    require_once SIREC_PLUGIN_DIR . 'includes/form-handler.php';
+    require_once SIREC_PLUGIN_DIR . 'includes/enrollment-handler.php';
+    require_once SIREC_PLUGIN_DIR . 'includes/notifications.php';
+    require_once SIREC_PLUGIN_DIR . 'includes/invitation-handler.php';
+    require_once SIREC_PLUGIN_DIR . 'includes/class-bp-sirec-notification.php';
+    
+    add_action('wp_ajax_sirec_get_courses', function() {
+        check_ajax_referer('sirec_nonce', 'nonce');
+        
+        $courses = sirec_get_edwiser_courses();
+        $formatted_courses = array_map(function($course) {
+            return array(
+                'id' => $course->ID,
+                'title' => $course->post_title
+            );
+        }, $courses);
+        
+        wp_send_json_success($formatted_courses);
+    });
+    
+}, 20);
+
+function sirec_check_dependencies() {
+    include_once(ABSPATH . 'wp-admin/includes/plugin.php');
+    
+    if (!is_plugin_active('edwiser-bridge/edwiser-bridge.php')) {
+        add_action('admin_notices', function() {
+            echo '<div class="error"><p>El plugin SIREC Course Applications requiere que Edwiser Bridge esté instalado y activado.</p></div>';
+        });
+        return false;
+    }
+    return true;
+}
+function sirec_get_edwiser_courses() {
+    $args = array(
+        'post_type' => 'eb_course',
+        'post_status' => 'publish',
+        'posts_per_page' => -1,
+        'orderby' => 'title',
+        'order' => 'ASC'
+    );
+    
+    return get_posts($args);
+}
+
 
 add_action('admin_enqueue_scripts', 'sirec_admin_scripts');
 
 function sirec_admin_scripts($hook) {
-    // Modificar la condición para incluir también la página de nueva invitación
     if (!in_array($hook, ['toplevel_page_sirec-applications', 'solicitudes-sirec_page_sirec-new-invitation'])) {
         return;
     }
 
-    // Estilos y scripts existentes
     wp_enqueue_style('sirec-admin-style', 
         SIREC_PLUGIN_URL . 'assets/css/admin-style.css', 
         [], 
@@ -101,7 +135,6 @@ function sirec_admin_scripts($hook) {
         true
     );
 
-    // Agregar Select2
     wp_enqueue_style('select2', 
         'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css', 
         [], 
@@ -120,8 +153,6 @@ function sirec_admin_scripts($hook) {
         'nonce' => wp_create_nonce('sirec_nonce')
     ]);
 }
-
-// Agregar después de las otras acciones
 add_action('plugins_loaded', 'sirec_check_buddyboss');
 
 function sirec_check_buddyboss() {
@@ -144,7 +175,6 @@ function sirec_register_buddyboss_component() {
     }
 }
 
-// Asegúrate de que esta función se ejecute temprano
 function sirec_format_buddyboss_notifications($action, $item_id, $secondary_item_id, $total_items, $format = 'string') {
     if ($action !== 'new_course_invitation') {
         return $action;
