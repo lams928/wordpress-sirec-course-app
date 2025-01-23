@@ -87,9 +87,30 @@ function sirec_handle_send_invitations() {
     wp_send_json_success($response);
 }
 
+// In invitation-handler.php
 function sirec_send_invitation_email($user, $course_id, $custom_message) {
+    // Generate unique token
+    $token = wp_generate_password(32, false);
+    
+    // Store token in database
+    global $wpdb;
+    $wpdb->insert(
+        $wpdb->prefix . 'sirec_invitation_tokens',
+        array(
+            'token' => $token,
+            'user_id' => $user->ID,
+            'course_id' => $course_id,
+            'created_at' => current_time('mysql'),
+            'expires_at' => date('Y-m-d H:i:s', strtotime('+7 days')),
+            'used' => 0
+        )
+    );
+
     $course = get_post($course_id);
     $subject = sprintf('Invitación al curso: %s', $course->post_title);
+    
+    // Modified message with unique form link
+    $form_url = home_url('/solicitud-curso/?token=' . $token);
     
     $message = sprintf(
         'Hola %s,<br><br>'.
@@ -103,11 +124,12 @@ function sirec_send_invitation_email($user, $course_id, $custom_message) {
     }
     
     $message .= sprintf(
-        'Para inscribirte, por favor completa el formulario de solicitud:<br>'.
-        '<a href="%s">Completar formulario</a><br><br>'.
+        'Para inscribirte, por favor completa el formulario de solicitud usando este enlace único:<br>'.
+        '<a href="%s">Completar formulario de solicitud</a><br><br>'.
+        'Este enlace es personal y expirará en 7 días.<br><br>'.
         'Saludos cordiales,<br>'.
         'Equipo SIREC',
-        home_url('/solicitud-curso/?course_id=' . $course_id)
+        $form_url
     );
     
     $headers = ['Content-Type: text/html; charset=UTF-8'];

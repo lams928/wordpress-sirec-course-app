@@ -43,6 +43,21 @@ function sirec_activate_plugin() {
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql);
 
+    $tokens_table = $wpdb->prefix . 'sirec_invitation_tokens';
+    $sql = "CREATE TABLE IF NOT EXISTS $tokens_table (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        token varchar(32) NOT NULL,
+        user_id bigint(20) NOT NULL,
+        course_id bigint(20) NOT NULL,
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        expires_at datetime NOT NULL,
+        used tinyint(1) DEFAULT 0,
+        PRIMARY KEY  (id),
+        UNIQUE KEY token (token)
+    ) $charset_collate;";
+    
+    dbDelta($sql);
+
     $role = get_role('editor_iiiccab');
     if($role) {
         $role->add_cap('edit_iiiccab');
@@ -116,6 +131,8 @@ function sirec_get_edwiser_courses() {
 
 
 add_action('admin_enqueue_scripts', 'sirec_admin_scripts');
+
+
 
 function sirec_admin_scripts($hook) {
     if (!in_array($hook, ['toplevel_page_sirec-applications', 'solicitudes-sirec_page_sirec-new-invitation'])) {
@@ -197,4 +214,26 @@ function sirec_format_buddyboss_notifications($action, $item_id, $secondary_item
     }
 
     return $return;
+}
+
+// In sirec-course-applications.php
+add_action('init', 'sirec_add_rewrite_rules');
+
+function sirec_add_rewrite_rules() {
+    add_rewrite_rule(
+        'solicitud-curso/?$',
+        'index.php?pagename=solicitud-curso',
+        'top'
+    );
+}
+
+add_filter('template_include', 'sirec_load_application_template');
+
+function sirec_load_application_template($template) {
+    if (get_query_var('pagename') === 'solicitud-curso') {
+        if (isset($_GET['token'])) {
+            return SIREC_PLUGIN_DIR . 'templates/application-form.php';
+        }
+    }
+    return $template;
 }
