@@ -20,23 +20,23 @@ jQuery(document).ready(function($) {
             contentType: false,
             success: function(response) {
                 if (response.success) {
-                    // Mostrar mensaje de éxito
-                    $form.html('<div class="sirec-success-message">' + 
-                        '<p>¡Tu solicitud ha sido enviada correctamente!</p>' +
-                        '</div>');
+                    // Alerta simple de éxito
+                    alert('¡Solicitud enviada exitosamente!');
+                    // Limpiar formulario
+                    $form[0].reset();
+                    // Redireccionar después de 2 segundos
+                    setTimeout(function() {
+                        window.location.href = '/'; // Puedes cambiar la URL de redirección
+                    }, 2000);
                 } else {
-                    // Mostrar mensaje de error
-                    $form.prepend('<div class="sirec-error-message">' +
-                        '<p>Error: ' + (response.data || 'Ha ocurrido un error al enviar la solicitud.') + '</p>' +
-                        '</div>');
+                    // Alerta simple de error
+                    alert('Error: ' + (response.data || 'Ha ocurrido un error al enviar la solicitud.'));
                     $submitButton.prop('disabled', false);
                 }
             },
             error: function() {
-                // Mostrar mensaje de error genérico
-                $form.prepend('<div class="sirec-error-message">' +
-                    '<p>Error: Ha ocurrido un error al procesar la solicitud. Por favor, intenta nuevamente.</p>' +
-                    '</div>');
+                // Alerta simple de error de sistema
+                alert('Error: Ha ocurrido un error en el sistema. Por favor, intenta nuevamente.');
                 $submitButton.prop('disabled', false);
             }
         });

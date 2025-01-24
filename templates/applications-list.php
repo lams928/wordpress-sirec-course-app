@@ -1,3 +1,6 @@
+<?php
+if (!defined('ABSPATH')) exit;
+?>
 <div class="wrap">
     <h1>Gestión de Solicitudes</h1>
     
@@ -13,17 +16,52 @@
         </div>
     </div>
     
+    <?php
+    global $wpdb;
+    $applications = $wpdb->get_results("
+        SELECT a.*, p.post_title as course_name, u.display_name as user_name
+        FROM {$wpdb->prefix}course_applications a
+        LEFT JOIN {$wpdb->posts} p ON a.course_id = p.ID
+        LEFT JOIN {$wpdb->users} u ON a.user_id = u.ID
+        ORDER BY a.submission_date DESC
+    ");
+    ?>
+    
     <table class="wp-list-table widefat fixed striped">
         <thead>
             <tr>
                 <th>Solicitante</th>
                 <th>Curso</th>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>País Nacimiento</th>
+                <th>País Residencia</th>
+                <th>Profesión</th>
                 <th>Fecha</th>
                 <th>Estado</th>
                 <th>Acciones</th>
             </tr>
         </thead>
-        <tbody id="applications-list">
+        <tbody>
+            <?php foreach ($applications as $application): ?>
+            <tr>
+                <td><?php echo esc_html($application->user_name); ?></td>
+                <td><?php echo esc_html($application->course_name); ?></td>
+                <td><?php echo esc_html($application->first_name); ?></td>
+                <td><?php echo esc_html($application->last_name); ?></td>
+                <td><?php echo esc_html($application->birth_country); ?></td>
+                <td><?php echo esc_html($application->residence_country); ?></td>
+                <td><?php echo esc_html($application->profession); ?></td>
+                <td><?php echo esc_html($application->submission_date); ?></td>
+                <td><?php echo esc_html($application->status); ?></td>
+                <td>
+                    <button class="button view-details" 
+                            data-id="<?php echo esc_attr($application->id); ?>">
+                        Ver detalles
+                    </button>
+                </td>
+            </tr>
+            <?php endforeach; ?>
         </tbody>
     </table>
 </div>
