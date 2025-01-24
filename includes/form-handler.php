@@ -63,3 +63,78 @@ function sirec_handle_application_submission() {
         wp_send_json_error('Error al guardar la solicitud');
     }
 }
+
+add_action('wp_ajax_sirec_approve_application', 'sirec_handle_approve_application');
+add_action('wp_ajax_sirec_reject_application', 'sirec_handle_reject_application');
+
+function sirec_handle_approve_application() {
+    check_ajax_referer('sirec_application_action', 'nonce');
+    
+    if (!current_user_can('edit_iiiccab')) {
+        wp_send_json_error('No tienes permisos para realizar esta acción.');
+    }
+    
+    $application_id = intval($_POST['application_id']);
+    
+    global $wpdb;
+    $application = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}course_applications WHERE id = %d",
+        $application_id
+    ));
+    
+    if (!$application) {
+        wp_send_json_error('Solicitud no encontrada.');
+    }
+    
+    // Iniciar proceso de matrícula
+    $enrollment_handler = new SIREC_Enrollment_Handler();
+    $enrollment_result = $enrollment_handler->process_enrollment($application);
+    
+    if ($enrollment_result['moodle']) {
+        // Actualizar estado de la solicitud
+        $wpdb->update(
+            $wpdb->prefix . 'course_applications',
+            array(
+                'status' => 'approved',
+                'review_date' => current_time('mysql'),
+                'reviewed_by' => get_current_user_id()
+            ),
+            array('id' => $application_id)
+        );
+        
+        // Enviar notificación
+        SIREC_Notifications::send_application_notification($application_id, 'approved');
+        
+        wp_send_json_success('Solicitud aprobada y usuario matriculado correctamente.');
+    } else {
+        wp_send_json_error('Error al matricular al usuario en Moodle.');
+    }
+}
+
+function sirec_handle_reject_application() {
+    check_ajax_referer('sirec_application_action', 'nonce');
+    
+    if (!current_user_can('edit_iiiccab')) {
+        wp_send_json_error('No tienes permisos para realizar esta acción.');
+    }
+    
+    $application_id = intval($_POST['application_id']);
+    
+    global $wpdb;
+    $result = $wpdb->update(
+        $wpdb->prefix . 'course_applications',
+        array(
+            'status' => 'rejected',
+            'review_date' => current_time('mysql'),
+            'reviewed_by' => get_current_user_id()
+        ),
+        array('id' => $application_id)
+    );
+    
+    if ($result) {
+        SIREC_Notifications::send_application_notification($application_id, 'rejected');
+        wp_send_json_success('Solicitud rechazada correctamente.');
+    } else {
+        wp_send_json_error('Error al rechazar la solicitud.');
+    }
+}

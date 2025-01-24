@@ -1,4 +1,75 @@
 jQuery(document).ready(function($) {
+
+    $('.approve-application').on('click', function() {
+        const button = $(this);
+        const applicationId = button.data('id');
+        const nonce = button.data('nonce');
+        
+        if (confirm('¿Estás seguro de que deseas aprobar esta solicitud?')) {
+            $.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'sirec_approve_application',
+                    application_id: applicationId,
+                    nonce: nonce
+                },
+                beforeSend: function() {
+                    button.prop('disabled', true);
+                },
+                success: function(response) {
+                    if (response.success) {
+                        alert(response.data);
+                        location.reload();
+                    } else {
+                        alert(response.data);
+                    }
+                },
+                error: function() {
+                    alert('Error al procesar la solicitud');
+                },
+                complete: function() {
+                    button.prop('disabled', false);
+                }
+            });
+        }
+    });
+    
+    $('.reject-application').on('click', function() {
+        const button = $(this);
+        const applicationId = button.data('id');
+        const nonce = button.data('nonce');
+        
+        if (confirm('¿Estás seguro de que deseas rechazar esta solicitud?')) {
+            $.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'sirec_reject_application',
+                    application_id: applicationId,
+                    nonce: nonce
+                },
+                beforeSend: function() {
+                    button.prop('disabled', true);
+                },
+                success: function(response) {
+                    if (response.success) {
+                        alert(response.data);
+                        location.reload();
+                    } else {
+                        alert(response.data);
+                    }
+                },
+                error: function() {
+                    alert('Error al procesar la solicitud');
+                },
+                complete: function() {
+                    button.prop('disabled', false);
+                }
+            });
+        }
+    });
+    
     function loadApplications(status = 'all', page = 1) {
         $.ajax({
             url: sirecAjax.ajaxurl,

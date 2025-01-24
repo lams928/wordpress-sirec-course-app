@@ -55,10 +55,20 @@ if (!defined('ABSPATH')) exit;
                 <td><?php echo esc_html($application->submission_date); ?></td>
                 <td><?php echo esc_html($application->status); ?></td>
                 <td>
-                    <button class="button view-details" 
-                            data-id="<?php echo esc_attr($application->id); ?>">
-                        Ver detalles
-                    </button>
+                    <?php if($application->status === 'pending'): ?>
+                        <button class="button button-primary approve-application" 
+                                data-id="<?php echo esc_attr($application->id); ?>"
+                                data-nonce="<?php echo wp_create_nonce('sirec_application_action'); ?>">
+                            Aprobar
+                        </button>
+                        <button class="button button-secondary reject-application"
+                                data-id="<?php echo esc_attr($application->id); ?>"
+                                data-nonce="<?php echo wp_create_nonce('sirec_application_action'); ?>">
+                            Rechazar
+                        </button>
+                    <?php else: ?>
+                        <?php echo esc_html(ucfirst($application->status)); ?>
+                    <?php endif; ?>
                 </td>
             </tr>
             <?php endforeach; ?>
