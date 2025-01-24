@@ -86,23 +86,6 @@ function sirec_handle_approve_application() {
         wp_send_json_error('Solicitud no encontrada.');
     }
 
-    // Verificar si el usuario ya está matriculado
-    $moodle_user_id = get_user_meta($application->user_id, 'moodle_user_id', true);
-    $moodle_course_id = get_post_meta($application->course_id, 'moodle_course_id', true);
-
-    if (!$moodle_user_id) {
-        wp_send_json_error('Error: No se encontró el ID de Moodle para el usuario. Por favor, verifique que el usuario esté sincronizado con Moodle.');
-    }
-
-    if (!$moodle_course_id) {
-        wp_send_json_error('Error: No se encontró el ID de Moodle para el curso. Por favor, verifique que el curso esté sincronizado con Moodle.');
-    }
-
-    // Verificar la conexión con Moodle
-    // if (!class_exists('Eb_Connection_Helper')) {
-    //     wp_send_json_error('Error: El plugin Edwiser Bridge no está instalado o activado correctamente.');
-    // }
-
     try {
         // Iniciar proceso de matrícula
         $enrollment_handler = new SIREC_Enrollment_Handler();
@@ -128,31 +111,9 @@ function sirec_handle_approve_application() {
             // Enviar notificación
             SIREC_Notifications::send_application_notification($application_id, 'approved');
             
-            wp_send_json_success(array(
-                'message' => 'Solicitud aprobada y usuario matriculado correctamente.',
-                'user_id' => $moodle_user_id,
-                'course_id' => $moodle_course_id
-            ));
+            wp_send_json_success('Solicitud aprobada y usuario matriculado correctamente.');
         } else {
-            // Guardar el error en la base de datos
-            $wpdb->update(
-                $wpdb->prefix . 'course_applications',
-                array(
-                    'moodle_enrollment_status' => 'error',
-                    'editor_notes' => 'Error en la matriculación: ' . date('Y-m-d H:i:s')
-                ),
-                array('id' => $application_id)
-            );
-
-            $error_message = sprintf(
-                'Error al matricular al usuario en Moodle. Detalles: Usuario Moodle ID: %s, Curso Moodle ID: %s. ' .
-                'Por favor, verifique: 1) La conexión con Moodle, 2) Los permisos del usuario, ' .
-                '3) La disponibilidad del curso en Moodle.',
-                $moodle_user_id,
-                $moodle_course_id
-            );
-            
-            wp_send_json_error($error_message);
+            wp_send_json_error('Error al matricular al usuario en Moodle.');
         }
     } catch (Exception $e) {
         wp_send_json_error('Error inesperado: ' . $e->getMessage());

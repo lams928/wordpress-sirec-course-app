@@ -2,6 +2,9 @@
 if (!defined('ABSPATH')) exit;
 
 class SIREC_Enrollment_Handler {
+    private $api_url = 'https://sirec-aulas.edupan.dev/webservice/rest/server.php';
+    private $wstoken = 'da37c0fddbaa3b114f31c77274610ada';
+
     public function process_enrollment($application) {
         $moodle_success = $this->enroll_in_moodle($application);
         
@@ -11,11 +14,6 @@ class SIREC_Enrollment_Handler {
     }
     
     private function enroll_in_moodle($application) {
-        if (!class_exists('Eb_Connection_Helper')) {
-            error_log('Edwiser Bridge no está instalado correctamente');
-            return false;
-        }
-
         try {
             // Obtener el ID del curso en Moodle
             $moodle_course_id = get_post_meta($application->course_id, 'moodle_course_id', true);
@@ -27,46 +25,42 @@ class SIREC_Enrollment_Handler {
             // Obtener el ID del usuario en Moodle
             $moodle_user_id = get_user_meta($application->user_id, 'moodle_user_id', true);
             if (!$moodle_user_id) {
-                // Intentar sincronizar el usuario si no existe
-                $eb_user_sync = new Eb_User_Manager();
-                $sync_result = $eb_user_sync->sync_wordpress_user_with_moodle($application->user_id);
-                
-                if ($sync_result) {
-                    $moodle_user_id = get_user_meta($application->user_id, 'moodle_user_id', true);
-                }
-                
-                if (!$moodle_user_id) {
-                    error_log('ID de usuario Moodle no encontrado para el usuario WordPress ID: ' . $application->user_id);
-                    return false;
-                }
-            }
-
-            // Crear instancia del helper de conexión
-            $eb_api = new Eb_Connection_Helper();
-            
-            // Verificar si el usuario ya está matriculado
-            $is_enrolled = $eb_api->get_enrollment_status($moodle_user_id, $moodle_course_id);
-            if ($is_enrolled) {
-                error_log('Usuario ya matriculado en el curso');
-                return true;
-            }
-
-            // Intentar matricular al usuario
-            $response = $eb_api->enroll_user($moodle_user_id, $moodle_course_id);
-            
-            if (is_wp_error($response)) {
-                error_log('Error WP al matricular: ' . $response->get_error_message());
+                error_log('ID de usuario Moodle no encontrado para el usuario WordPress ID: ' . $application->user_id);
                 return false;
             }
-            
-            if (isset($response['success']) && $response['success']) {
-                // Actualizar meta del usuario para registrar la matriculación
-                update_user_meta($application->user_id, 'enrolled_course_' . $application->course_id, true);
-                return true;
+
+            // Preparar datos para la API
+            $body = [
+                'wstoken' => $this->wstoken,
+                'wsfunction' => 'local_wsmoodlehl_enrol_user',
+                'enrolments[0][userid]' => $moodle_user_id,
+                'enrolments[0][courseid]' => $moodle_course_id,
+                'enrolments[0][roleid]' => 5 // Role ID 5 para estudiante
+            ];
+
+            // Realizar la petición a la API
+            $response = wp_remote_post($this->api_url . '?moodlewsrestformat=json', [
+                'body' => $body,
+                'timeout' => 30
+            ]);
+
+            if (is_wp_error($response)) {
+                error_log('Error en la petición a Moodle: ' . $response->get_error_message());
+                return false;
             }
-            
-            error_log('Error al matricular en Moodle. Respuesta: ' . print_r($response, true));
-            return false;
+
+            $body = wp_remote_retrieve_body($response);
+            $result = json_decode($body, true);
+
+            // Verificar si la respuesta es exitosa
+            if (isset($result['exception'])) {
+                error_log('Error de Moodle API: ' . print_r($result, true));
+                return false;
+            }
+
+            // Actualizar meta del usuario para registrar la matriculación
+            update_user_meta($application->user_id, 'enrolled_course_' . $application->course_id, true);
+            return true;
             
         } catch (Exception $e) {
             error_log('Excepción en la matriculación: ' . $e->getMessage());
