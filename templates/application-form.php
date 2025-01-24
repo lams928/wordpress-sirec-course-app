@@ -1,6 +1,13 @@
-// Create new file: templates/application-form.php
+
 <?php
 if (!defined('ABSPATH')) exit;
+
+if (!is_user_logged_in()) {
+    wp_die('Debes iniciar sesión para acceder a este formulario. <a href="' . wp_login_url($_SERVER['REQUEST_URI']) . '">Iniciar sesión</a>');
+}
+
+$current_user = wp_get_current_user();
+
 
 // Verify token
 $token = sanitize_text_field($_GET['token']);
@@ -11,9 +18,10 @@ $token_data = $wpdb->get_row($wpdb->prepare(
     $token
 ));
 
-if (!$token_data) {
-    wp_die('Este enlace ha expirado o no es válido.');
+if (!$token_data || $token_data->user_id != $current_user->ID) {
+    wp_die('No tienes permiso para acceder a este formulario o el enlace ha expirado.');
 }
+
 ?>
 
 <div class="sirec-application-form">

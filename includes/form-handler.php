@@ -1,23 +1,37 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-add_action('wp_ajax_nopriv_sirec_submit_application', 'sirec_handle_application_submission');
+add_action('wp_ajax_nopriv_sirec_submit_application', 'sirec_unauthorized_submission');
 add_action('wp_ajax_sirec_submit_application', 'sirec_handle_application_submission');
 
+function sirec_unauthorized_submission() {
+    wp_send_json_error('Debes iniciar sesión para enviar una solicitud.');
+}
 function sirec_handle_application_submission() {
     check_ajax_referer('sirec_application_nonce', 'nonce');
     
+    if (!is_user_logged_in()) {
+        wp_send_json_error('Debes iniciar sesión para enviar una solicitud.');
+    }
+    
+    $current_user = wp_get_current_user();
     $token = sanitize_text_field($_POST['token']);
     
     global $wpdb;
     $token_data = $wpdb->get_row($wpdb->prepare(
         "SELECT * FROM {$wpdb->prefix}sirec_invitation_tokens 
-        WHERE token = %s AND used = 0 AND expires_at > NOW()",
-        $token
+        WHERE token = %s AND used = 0 AND expires_at > NOW() AND user_id = %d",
+        $token,
+        $current_user->ID
     ));
     
     if (!$token_data) {
-        wp_send_json_error('Token inválido o expirado');
+        wp_send_json_error('Token inválido o no autorizado para este usuario');
+    }
+
+
+    if ($token_data->user_id !== $current_user->ID) {
+        wp_send_json_error('No tienes permiso para usar este token de invitación');
     }
     
     // Insert application

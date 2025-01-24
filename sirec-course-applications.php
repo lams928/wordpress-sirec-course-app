@@ -231,9 +231,18 @@ add_filter('template_include', 'sirec_load_application_template');
 
 function sirec_load_application_template($template) {
     if (get_query_var('pagename') === 'solicitud-curso') {
-        if (isset($_GET['token'])) {
-            return SIREC_PLUGIN_DIR . 'templates/application-form.php';
+        if (!isset($_GET['token'])) {
+            wp_redirect(home_url());
+            exit;
         }
+        
+        // Si el usuario no está logueado, redirigir al login
+        if (!is_user_logged_in()) {
+            wp_redirect(wp_login_url($_SERVER['REQUEST_URI']));
+            exit;
+        }
+        
+        return SIREC_PLUGIN_DIR . 'templates/application-form.php';
     }
     return $template;
 }
