@@ -30,13 +30,13 @@ if (!defined('ABSPATH')) exit;
     <table class="wp-list-table widefat fixed striped">
         <thead>
             <tr>
-                <th>Solicitante</th>
                 <th>Curso</th>
                 <th>Nombre</th>
                 <th>Apellido</th>
                 <th>País Nacimiento</th>
                 <th>País Residencia</th>
                 <th>Profesión</th>
+                <th>Motivo de Participación</th>
                 <th>Fecha</th>
                 <th>Estado</th>
                 <th>Acciones</th>
@@ -45,13 +45,13 @@ if (!defined('ABSPATH')) exit;
         <tbody>
             <?php foreach ($applications as $application): ?>
             <tr>
-                <td><?php echo esc_html($application->user_name); ?></td>
                 <td><?php echo esc_html($application->course_name); ?></td>
                 <td><?php echo esc_html($application->first_name); ?></td>
                 <td><?php echo esc_html($application->last_name); ?></td>
                 <td><?php echo esc_html($application->birth_country); ?></td>
                 <td><?php echo esc_html($application->residence_country); ?></td>
                 <td><?php echo esc_html($application->profession); ?></td>
+                <td><?php echo esc_html($application->participation_reason); ?></td>
                 <td><?php echo esc_html($application->submission_date); ?></td>
                 <td><?php echo esc_html($application->status); ?></td>
                 <td>
