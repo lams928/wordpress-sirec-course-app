@@ -48,28 +48,39 @@ class BP_SIREC_Notification extends BP_Core_Notification_Abstract {
 
     public function format_notification($content, $item_id, $secondary_item_id, $action_item_count, $component_action_name, $component_name, $notification_id, $screen) {
         if ('sirec_courses' === $component_name && 'new_course_invitation' === $component_action_name) {
+            // Obtener el token de invitación para este usuario y curso
+            global $wpdb;
+            $token = $wpdb->get_var($wpdb->prepare(
+                "SELECT token FROM {$wpdb->prefix}sirec_invitation_tokens 
+                WHERE user_id = %d AND course_id = %d AND used = 0 
+                ORDER BY created_at DESC LIMIT 1",
+                get_current_user_id(),
+                $item_id
+            ));
+    
             $course_title = get_the_title($item_id);
-            $course_link = get_permalink($item_id);
+            // Generar el link del formulario en lugar del link del curso
+            $form_url = home_url('/solicitud-curso/?token=' . $token);
             
             $text = sprintf(
-                __('Has sido invitado al curso: %s', 'sirec'),
+                __('Tienes una invitación pendiente para el curso: %s', 'sirec'),
                 $course_title
             );
-
+    
             if ($screen == "app_push" || $screen == "web_push") {
                 $text = sprintf(
-                    __('Nueva invitación al curso: %s', 'sirec'),
+                    __('Nueva invitación pendiente para el curso: %s', 'sirec'),
                     $course_title
                 );
             }   
-
+    
             return array(
                 'title' => __('Invitación a Curso', 'sirec'),
                 'text'  => $text,
-                'link'  => $course_link,
+                'link'  => $form_url, // Ahora apunta al formulario
             );
         }
-
+    
         return $content;
     }
 }

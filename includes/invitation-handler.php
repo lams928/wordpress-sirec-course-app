@@ -143,6 +143,15 @@ function sirec_send_sirec_notification($user_id, $course_id) {
         return false;
     }
 
+    global $wpdb;
+    $token = $wpdb->get_var($wpdb->prepare(
+        "SELECT token FROM {$wpdb->prefix}sirec_invitation_tokens 
+        WHERE user_id = %d AND course_id = %d AND used = 0 
+        ORDER BY created_at DESC LIMIT 1",
+        $user_id,
+        $course_id
+    ));
+
     $notification_id = bp_notifications_add_notification(array(
         'user_id'           => $user_id,
         'item_id'           => $course_id,
@@ -160,17 +169,17 @@ function sirec_send_sirec_notification($user_id, $course_id) {
 
     if (bp_is_active('activity')) {
         $course_title = get_the_title($course_id);
-        $course_link = get_permalink($course_id);
+        $form_url = home_url('/solicitud-curso/?token=' . $token);
         
         bp_activity_add(array(
             'user_id'      => $user_id,
             'component'    => 'sirec_courses',
             'type'         => 'new_course_invitation',
-            'primary_link' => $course_link,
+            'primary_link' => $form_url, 
             'item_id'      => $course_id,
             'action'       => sprintf(
-                __('Has sido invitado al curso: <a href="%s">%s</a>', 'sirec'),
-                esc_url($course_link),
+                __('Has recibido una invitación para el curso: <a href="%s">%s</a>', 'sirec'),
+                esc_url($form_url),
                 esc_html($course_title)
             ),
             'hide_sitewide' => false
