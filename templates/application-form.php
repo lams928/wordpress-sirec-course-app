@@ -46,7 +46,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_application'])
             $token
         ));
         $course = get_post($token_data->course_id);
-
+    
+        // URL del panel admin para revisar solicitudes
+        $admin_url = admin_url('admin.php?page=sirec-applications');
+    
         // Preparar el mensaje para los editores
         $editor_subject = 'Nueva solicitud de curso pendiente de revisión';
         $editor_message = sprintf(
@@ -55,21 +58,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_application'])
             'Solicitante: %s %s<br>'.
             'Correo: %s<br>'.
             'Curso: %s<br><br>'.
-            'Por favor, ingrese al panel de administración para revisar y aprobar/rechazar esta solicitud.<br><br>'.
+            'Para revisar y aprobar/rechazar esta solicitud, haga clic en el siguiente enlace:<br>'.
+            '<a href="%s">Revisar solicitud en el panel administrativo</a><br><br>'.
             'Saludos cordiales,<br>'.
             'Sistema SIREC',
             sanitize_text_field($_POST['first_name']),
             sanitize_text_field($_POST['last_name']),
             $current_user->user_email,
-            $course->post_title
+            $course->post_title,
+            $admin_url
         );
-
+    
         $headers = array('Content-Type: text/html; charset=UTF-8');
-
-        // Enviar correos a los editores
+    
+        // Enviar correos y notificaciones BuddyBoss a los editores
         foreach ($editor_users as $user) {
             $notified_emails[] = $user->user_email;
+            
+            // Enviar correo electrónico
             wp_mail($user->user_email, $editor_subject, $editor_message, $headers);
+            
+            // Enviar notificación BuddyBoss
+            if (function_exists('bp_notifications_add_notification')) {
+                bp_notifications_add_notification(array(
+                    'user_id'           => $user->ID,
+                    'item_id'           => $course->ID,
+                    'secondary_item_id' => $current_user->ID,
+                    'component_name'    => 'sirec_courses',
+                    'component_action'  => 'new_course_application',
+                    'date_notified'     => bp_core_current_time(),
+                    'is_new'           => 1,
+                    'allow_duplicate'   => true
+                ));
+    
+                // Agregar actividad en BuddyBoss si está activo
+                if (function_exists('bp_activity_add')) {
+                    bp_activity_add(array(
+                        'user_id'      => $user->ID,
+                        'action'       => sprintf(
+                            'Nueva solicitud de curso pendiente de revisión para "%s"',
+                            $course->post_title
+                        ),
+                        'component'    => 'sirec_courses',
+                        'type'         => 'new_course_application',
+                        'primary_link' => $admin_url,
+                        'item_id'      => $course->ID
+                    ));
+                }
+            }
         }
         
         // Crear mensaje de éxito con los correos
