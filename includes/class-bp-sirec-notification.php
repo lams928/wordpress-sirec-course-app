@@ -44,6 +44,19 @@ class BP_SIREC_Notification extends BP_Core_Notification_Abstract {
             array('new_course_invitation'),
             5
         );
+
+        $this->register_notification_type(
+            'new_course_application',
+            esc_html__('Solicitud de Curso Pendiente', 'sirec'),
+            esc_html__('Solicitudes de curso pendientes', 'sirec'),
+            'sirec_courses'
+        );
+
+        $this->register_notification(
+            'sirec_courses',
+            'new_course_application',
+            'new_course_application'
+        );
     }
 
     public function format_notification($content, $item_id, $secondary_item_id, $action_item_count, $component_action_name, $component_name, $notification_id, $screen) {
@@ -78,6 +91,22 @@ class BP_SIREC_Notification extends BP_Core_Notification_Abstract {
                 'title' => __('Invitación a Curso', 'sirec'),
                 'text'  => $text,
                 'link'  => $form_url, // Ahora apunta al formulario
+            );
+        }
+
+        if ('sirec_courses' === $component_name && 'new_course_application' === $component_action_name) {
+            $admin_url = admin_url('admin.php?page=sirec-applications');
+            $course_title = get_the_title($item_id);
+            
+            $text = sprintf(
+                __('Nueva solicitud pendiente para el curso: %s', 'sirec'),
+                $course_title
+            );
+    
+            return array(
+                'title' => __('Solicitud de Curso Pendiente', 'sirec'),
+                'text'  => $text,
+                'link'  => $admin_url, // Link al panel de solicitudes SIREC
             );
         }
     

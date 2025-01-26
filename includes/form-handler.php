@@ -8,11 +8,54 @@ function sirec_unauthorized_submission() {
     wp_send_json_error('Debes iniciar sesión para enviar una solicitud.');
 }
 
+function notify_editors_of_new_application($application_id, $course_id) {
+    // Obtener todos los usuarios con el rol 'edit_iiiccab'
+    $editors = get_users(['role' => 'edit_iiiccab']);
+    
+    foreach ($editors as $editor) {
+        // Crear notificación de BuddyBoss
+        if (function_exists('bp_notifications_add_notification')) {
+            bp_notifications_add_notification(array(
+                'user_id'           => $editor->ID,
+                'item_id'           => $course_id,
+                'secondary_item_id' => $application_id,
+                'component_name'    => 'sirec_courses',
+                'component_action'  => 'new_course_application',
+                'date_notified'     => bp_core_current_time(),
+                'is_new'           => 1,
+            ));
+        }
+        
+        // Enviar correo electrónico
+        $subject = sprintf(__('Nueva solicitud de curso pendiente: %s', 'sirec'), get_the_title($course_id));
+        $admin_url = admin_url('admin.php?page=sirec-applications');
+        
+        $message = sprintf(
+            'Hola %s,<br><br>'.
+            'Hay una nueva solicitud pendiente para el curso "%s".<br><br>'.
+            'Para revisar la solicitud, haz clic aquí: <a href="%s">Panel de Solicitudes SIREC</a><br><br>'.
+            'Saludos cordiales,<br>'.
+            'Sistema SIREC',
+            $editor->display_name,
+            get_the_title($course_id),
+            $admin_url
+        );
+        
+        $headers = ['Content-Type: text/html; charset=UTF-8'];
+        wp_mail($editor->user_email, $subject, $message, $headers);
+    }
+}
+
 function sirec_handle_application_submission() {
     check_ajax_referer('sirec_application_nonce', 'nonce');
     
     if (!is_user_logged_in()) {
         wp_send_json_error('Debes iniciar sesión para enviar una solicitud.');
+    }
+
+    if ($application_id) {
+        // Notificar a los editores después de insertar la solicitud
+        notify_editors_of_new_application($application_id, $course_id);
     }
     
     $current_user = wp_get_current_user();
