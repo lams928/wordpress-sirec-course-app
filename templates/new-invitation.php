@@ -32,32 +32,34 @@
             </tr>
 
             <tr>
-                <th><label for="selected_users">Seleccionar Usuarios</label></th>
+                <th><label for="selected_roles">Seleccionar Roles</label></th>
                 <td>
-                    <select name="selected_users[]" id="selected_users" multiple="multiple" required style="width: 100%;">
-                        <?php
-                        $users = get_users(['role__not_in' => ['administrator']]);
-                        foreach($users as $user) {
-                            printf(
-                                '<option value="%d">%s (%s)</option>',
-                                $user->ID,
-                                esc_html($user->display_name),
-                                esc_html($user->user_email)
-                            );
+                    <?php
+                    $roles = get_editable_roles();
+                    foreach($roles as $role_key => $role) {
+                        if($role_key !== 'administrator') {
+                            ?>
+                            <label style="display: block; margin-bottom: 10px;">
+                                <input type="checkbox" 
+                                    name="selected_roles[]" 
+                                    value="<?php echo esc_attr($role_key); ?>">
+                                <?php echo esc_html($role['name']); ?>
+                            </label>
+                            <?php
                         }
-                        ?>
-                    </select>
-                    <p class="description">Mantén presionada la tecla Ctrl (Cmd en Mac) para seleccionar múltiples usuarios</p>
+                    }
+                    ?>
+                    <p class="description">Selecciona los roles a los que deseas enviar la invitación</p>
                 </td>
             </tr>
                 
-                <tr>
+                <!-- <tr>
                     <th><label for="invitation_message">Mensaje Personalizado</label></th>
                     <td>
                         <textarea name="invitation_message" id="invitation_message" rows="5" cols="50"
                             placeholder="Mensaje opcional que se incluirá en la invitación..."></textarea>
                     </td>
-                </tr>
+                </tr> -->
             </table>
             
             <div class="submit-button">
@@ -85,6 +87,12 @@ jQuery(document).ready(function($) {
         const $submit = $form.find(':submit');
         const $results = $('#invitation-results');
         
+        // Verificar si hay roles seleccionados
+        if(!$('input[name="selected_roles[]"]:checked').length) {
+            alert('Por favor, selecciona al menos un rol.');
+            return;
+        }
+        
         $spinner.addClass('is-active');
         $submit.prop('disabled', true);
         
@@ -96,18 +104,17 @@ jQuery(document).ready(function($) {
                 nonce: $('#invitation_nonce').val(),
                 course_id: $('#course_id').val(),
                 message: $('#invitation_message').val(),
-                selected_users: $('#selected_users').val() 
+                selected_roles: $('input[name="selected_roles[]"]:checked').map(function() {
+                    return $(this).val();
+                }).get()
             },
             success: function(response) {
                 if(response.success) {
                     let resultHtml = '<div class="notice notice-info">';
-                    
                     resultHtml += '<p><strong>Notificaciones:</strong><br>';
                     resultHtml += response.data.notification_stats.message + '</p>';
-                    
                     resultHtml += '<p><strong>Correos Electrónicos:</strong><br>';
                     resultHtml += response.data.email_stats.message + '</p>';
-                    
                     resultHtml += '</div>';
                     
                     $('#invitation-results').html(resultHtml);
