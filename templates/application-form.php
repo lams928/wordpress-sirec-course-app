@@ -30,12 +30,63 @@ if (!$token_data || $token_data->user_id != $current_user->ID) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_application'])) {
     $_POST['token'] = $token; // Añadir el token a los datos del POST
     $result = sirec_process_application_form($_POST);
+    
     if ($result['success']) {
-        echo '<div class="alert alert-success">Solicitud enviada correctamente</div>';
+        // Obtener usuarios con el rol editor_iiiccab
+        $editor_users = get_users(['role' => 'editor_iiiccab']);
+        
+        // Preparar lista de correos para mostrar
+        $notified_emails = [];
+        
+        // Obtener información del usuario actual y del curso
+        $current_user = wp_get_current_user();
+        global $wpdb;
+        $token_data = $wpdb->get_row($wpdb->prepare(
+            "SELECT course_id FROM {$wpdb->prefix}sirec_invitation_tokens WHERE token = %s",
+            $token
+        ));
+        $course = get_post($token_data->course_id);
+
+        // Preparar el mensaje para los editores
+        $editor_subject = 'Nueva solicitud de curso pendiente de revisión';
+        $editor_message = sprintf(
+            'Hola,<br><br>'.
+            'Se ha recibido una nueva solicitud de curso que requiere su revisión:<br><br>'.
+            'Solicitante: %s %s<br>'.
+            'Correo: %s<br>'.
+            'Curso: %s<br><br>'.
+            'Por favor, ingrese al panel de administración para revisar y aprobar/rechazar esta solicitud.<br><br>'.
+            'Saludos cordiales,<br>'.
+            'Sistema SIREC',
+            sanitize_text_field($_POST['first_name']),
+            sanitize_text_field($_POST['last_name']),
+            $current_user->user_email,
+            $course->post_title
+        );
+
+        $headers = array('Content-Type: text/html; charset=UTF-8');
+
+        // Enviar correos a los editores
+        foreach ($editor_users as $user) {
+            $notified_emails[] = $user->user_email;
+            wp_mail($user->user_email, $editor_subject, $editor_message, $headers);
+        }
+        
+        // Crear mensaje de éxito con los correos
+        $success_message = 'Solicitud enviada correctamente.<br>';
+        $success_message .= 'Se enviaron notificaciones a los siguientes correos:<br>';
+        $success_message .= '<ul>';
+        foreach ($notified_emails as $email) {
+            $success_message .= '<li>' . esc_html($email) . '</li>';
+        }
+        $success_message .= '</ul>';
+        
+        echo '<div class="alert alert-success">' . wp_kses_post($success_message) . '</div>';
     } else {
         echo '<div class="alert alert-error">' . esc_html($result['message']) . '</div>';
     }
 }
+
 ?>
 <style>
 .application-form-container {
@@ -245,7 +296,7 @@ function sirec_process_application_form($post_data) {
             array('used' => 1),
             array('token' => $token)
         );
-        return array('success' => true, 'message' => 'Solicitud enviada correctamente');
+        return array('success' => true, 'message' => 'Solicitud enviada correctamente3');
     } else {
         return array('success' => false, 'message' => 'Error al guardar la solicitud');
     }

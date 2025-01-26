@@ -58,7 +58,7 @@ function sirec_handle_application_submission() {
             array('token' => $token)
         );
         
-        wp_send_json_success('Solicitud enviada correctamente');
+        wp_send_json_success('Solicitud enviada correctamente1');
     } else {
         wp_send_json_error('Error al guardar la solicitud');
     }
