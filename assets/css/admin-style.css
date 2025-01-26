@@ -5,17 +5,28 @@
 }
 
 .sirec-status-pending {
-    color: #f90;
+    background-color: #E4A11B; /* Naranja */
+    color: #fff;
+    padding: 3px 5px;
+    border-radius: 7px;
+    display: inline-block;
 }
 
 .sirec-status-approved {
-    color: #0a0;
+    background-color: #14A44D; /* Verde */
+    color: #fff;
+    padding: 3px 5px;
+    border-radius: 7px;
+    display: inline-block;
 }
 
 .sirec-status-rejected {
-    color: #a00;
+    background-color: #ef0101; /* Rojo */
+    color: #fff;
+    padding: 3px 5px;
+    border-radius: 7px;
+    display: inline-block;
 }
-
 .sirec-action-button {
     margin: 0 5px;
 }

@@ -53,7 +53,24 @@ if (!defined('ABSPATH')) exit;
                 <td><?php echo esc_html($application->profession); ?></td>
                 <td><?php echo esc_html($application->participation_reason); ?></td>
                 <td><?php echo esc_html($application->submission_date); ?></td>
-                <td><?php echo esc_html($application->status); ?></td>
+                <td>
+                    <?php 
+                    $status = $application->status;
+                    $status_text = '';
+                    switch($status) {
+                        case 'pending':
+                            $status_text = 'Pendiente';
+                            break;
+                        case 'approved':
+                            $status_text = 'Aprobado';
+                            break;
+                        case 'rejected':
+                            $status_text = 'Rechazado';
+                            break;
+                    }
+                    echo '<span class="sirec-status-' . esc_attr($status) . '">' . esc_html($status_text) . '</span>';
+                    ?>
+                </td>
                 <td>
                     <?php if($application->status === 'pending'): ?>
                         <button class="button button-primary approve-application" 

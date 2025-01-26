@@ -110,12 +110,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_application'])
         
         // Crear mensaje de éxito con los correos
         $success_message = 'Solicitud enviada correctamente.<br>';
-        $success_message .= 'Se enviaron notificaciones a los siguientes correos:<br>';
-        $success_message .= '<ul>';
-        foreach ($notified_emails as $email) {
-            $success_message .= '<li>' . esc_html($email) . '</li>';
-        }
-        $success_message .= '</ul>';
+        // $success_message .= 'Se enviaron notificaciones a los siguientes correos:<br>';
+        // $success_message .= '<ul>';
+        // foreach ($notified_emails as $email) {
+        //     $success_message .= '<li>' . esc_html($email) . '</li>';
+        // }
+        // $success_message .= '</ul>';
         
         echo '<div class="alert alert-success">' . wp_kses_post($success_message) . '</div>';
     } else {
