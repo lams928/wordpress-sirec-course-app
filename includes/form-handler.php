@@ -146,6 +146,15 @@ function sirec_handle_approve_application() {
                 ),
                 array('id' => $application_id)
             );
+
+            $wpdb->insert( 
+                $wpdb->prefix . 'moodle_enrollment',
+                array(
+                    'user_id' => $application->user_id,
+                    'course_id' => $application->course_id,
+                    'time' => current_time('mysql')
+                )
+            );
             
             if ($update_result === false) {
                 wp_send_json_error('Error al actualizar el estado de la solicitud en la base de datos.');
