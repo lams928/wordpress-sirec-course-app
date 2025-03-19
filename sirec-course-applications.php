@@ -229,6 +229,7 @@ function sirec_application_form_shortcode($atts) {
         return '<div class="alert alert-error">Debes iniciar sesión para acceder a este formulario. <a href="' . wp_login_url($_SERVER['REQUEST_URI']) . '">Iniciar sesión</a></div>';
     }
 
+
     if (empty($token)) {
         return '<div class="alert alert-error">Token no proporcionado. Acceso denegado.</div>';
     }
@@ -240,8 +241,14 @@ function sirec_application_form_shortcode($atts) {
         $token
     ));
 
+
     if (!$token_data) {
         return '<div class="alert alert-error">Token inválido o expirado.</div>';
+    }
+
+    $current_user_id = get_current_user_id();
+    if ($current_user_id !== intval($token_data->user_id)) {
+        return '<div class="alert alert-error">No tienes permiso para acceder a esta invitación. Esta invitación fue enviada a otro usuario.</div>';
     }
 
     // Procesar el formulario si se envió
@@ -410,6 +417,19 @@ function sirec_handle_custom_page($template) {
         // Si el usuario no está logueado, redirigir al login
         if (!is_user_logged_in()) {
             wp_redirect(wp_login_url($_SERVER['REQUEST_URI']));
+            exit;
+        }
+
+        // Verificar que el token corresponda al usuario actual
+        global $wpdb;
+        $token_data = $wpdb->get_row($wpdb->prepare(
+            "SELECT user_id FROM {$wpdb->prefix}sirec_invitation_tokens 
+            WHERE token = %s AND used = 0 AND expires_at > NOW()",
+            $token
+        ));
+
+        if (!$token_data || get_current_user_id() !== intval($token_data->user_id)) {
+            wp_redirect(home_url());
             exit;
         }
 
