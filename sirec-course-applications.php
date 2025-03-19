@@ -217,63 +217,205 @@ function sirec_format_buddyboss_notifications($action, $item_id, $secondary_item
 }
 
 // In sirec-course-applications.php
-add_action('init', 'sirec_add_rewrite_rules');
 
-function sirec_add_rewrite_rules() {
+
+
+/*Shortocde form*/
+function sirec_application_form_shortcode($atts) {
+    // Obtener el token
+    $token = get_query_var('token') ? get_query_var('token') : (isset($_GET['token']) ? $_GET['token'] : '');
+    
+    if (!is_user_logged_in()) {
+        return '<div class="alert alert-error">Debes iniciar sesión para acceder a este formulario. <a href="' . wp_login_url($_SERVER['REQUEST_URI']) . '">Iniciar sesión</a></div>';
+    }
+
+    if (empty($token)) {
+        return '<div class="alert alert-error">Token no proporcionado. Acceso denegado.</div>';
+    }
+
+    global $wpdb;
+    $token_data = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}sirec_invitation_tokens 
+        WHERE token = %s AND used = 0 AND expires_at > NOW()",
+        $token
+    ));
+
+    if (!$token_data) {
+        return '<div class="alert alert-error">Token inválido o expirado.</div>';
+    }
+
+    // Procesar el formulario si se envió
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_application'])) {
+        if (!wp_verify_nonce($_POST['application_nonce'], 'sirec_application_nonce')) {
+            return '<div class="alert alert-error">Error de seguridad. Por favor, recarga la página.</div>';
+        }
+
+        $current_user = wp_get_current_user();
+        
+        $application_data = array(
+            'user_id' => $current_user->ID,
+            'course_id' => $token_data->course_id,
+            'status' => 'pending',
+            'first_name' => sanitize_text_field($_POST['first_name']),
+            'last_name' => sanitize_text_field($_POST['last_name']),
+            'birth_date' => sanitize_text_field($_POST['birth_date']),
+            'birth_country' => sanitize_text_field($_POST['birth_country']),
+            'residence_country' => sanitize_text_field($_POST['residence_country']),
+            'profession' => sanitize_text_field($_POST['profession']),
+            'participation_reason' => sanitize_textarea_field($_POST['participation_reason']),
+            'submission_date' => current_time('mysql')
+        );
+
+        $result = $wpdb->insert(
+            $wpdb->prefix . 'course_applications',
+            $application_data
+        );
+
+        if ($result) {
+            // Marcar el token como usado
+            $wpdb->update(
+                $wpdb->prefix . 'sirec_invitation_tokens',
+                array('used' => 1),
+                array('token' => $token)
+            );
+
+            // Notificar a los editores
+            if (function_exists('notify_editors_of_new_application')) {
+                notify_editors_of_new_application($wpdb->insert_id, $token_data->course_id);
+            }
+
+            return '<div class="alert alert-success">Solicitud enviada correctamente.</div>';
+        } else {
+            return '<div class="alert alert-error">Error al guardar la solicitud. Por favor, intenta nuevamente.</div>';
+        }
+    }
+
+    ob_start();
+    ?>
+    <div class="sirec-application-form">
+        <form method="post" action="" class="sirec-form">
+            <?php wp_nonce_field('sirec_application_nonce', 'application_nonce'); ?>
+            <input type="hidden" name="token" value="<?php echo esc_attr($token); ?>">
+            
+            <div class="form-group">
+                <label for="first_name">Nombre:</label>
+                <input type="text" name="first_name" id="first_name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="last_name">Apellido:</label>
+                <input type="text" name="last_name" id="last_name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="birth_date">Fecha de Nacimiento:</label>
+                <input type="date" name="birth_date" id="birth_date" required>
+            </div>
+
+            <div class="form-group">
+                <label for="birth_country">País de Nacimiento:</label>
+                <input type="text" name="birth_country" id="birth_country" required>
+            </div>
+
+            <div class="form-group">
+                <label for="residence_country">País de Residencia:</label>
+                <input type="text" name="residence_country" id="residence_country" required>
+            </div>
+
+            <div class="form-group">
+                <label for="profession">Profesión:</label>
+                <select name="profession" id="profession" required>
+                    <option value="">Seleccione...</option>
+                    <option value="padre">Padre de familia</option>
+                    <option value="estudiante">Estudiante</option>
+                    <option value="docente">Docente</option>
+                    <option value="otro">Otro</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="participation_reason">Motivo de participación:</label>
+                <textarea name="participation_reason" id="participation_reason" required></textarea>
+            </div>
+
+            <div class="form-group">
+                <button type="submit" name="submit_application" class="sirec-submit-btn">
+                    Enviar Solicitud
+                </button>
+            </div>
+        </form>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+add_shortcode('sirec_application_form', 'sirec_application_form_shortcode');
+
+add_action('wp_enqueue_scripts', 'sirec_enqueue_form_assets');
+
+function sirec_enqueue_form_assets() {
+    if (has_shortcode(get_post()->post_content, 'sirec_application_form') || 
+        get_query_var('pagename') === 'invitacion-curso') {
+        wp_enqueue_style('sirec-form-style', SIREC_PLUGIN_URL . 'assets/css/form-style.css');
+        wp_enqueue_script('sirec-form-script', SIREC_PLUGIN_URL . 'assets/js/application-form.js', array('jquery'), '1.0', true);
+        
+        wp_localize_script('sirec-form-script', 'sirecAjax', array(
+            'ajaxurl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('sirec_application_nonce')
+        ));
+    }
+}
+
+function sirec_register_custom_endpoint() {
     add_rewrite_rule(
         'invitacion-curso/?$',
         'index.php?pagename=invitacion-curso',
         'top'
     );
+    flush_rewrite_rules();
 }
+register_activation_hook(__FILE__, 'sirec_register_custom_endpoint');
 
-add_filter('template_include', 'sirec_load_application_template');
+function sirec_register_query_vars($vars) {
+    $vars[] = 'token';
+    return $vars;
+}
+add_filter('query_vars', 'sirec_register_query_vars');
 
-function sirec_load_application_template($template) {
+
+function sirec_handle_custom_page($template) {
     if (get_query_var('pagename') === 'invitacion-curso') {
-        if (!isset($_GET['token'])) {
+        // Verificar si existe la página
+        $page = get_page_by_path('invitacion-curso');
+        
+        if (!$page) {
+            // Crear la página si no existe
+            $page_data = array(
+                'post_title'    => 'Invitación Curso',
+                'post_name'     => 'invitacion-curso',
+                'post_status'   => 'publish',
+                'post_type'     => 'page',
+                'post_content'  => '[sirec_application_form]'
+            );
+            wp_insert_post($page_data);
+        }
+        
+        // Verificar token
+        $token = get_query_var('token') ? get_query_var('token') : (isset($_GET['token']) ? $_GET['token'] : '');
+        
+        if (empty($token)) {
             wp_redirect(home_url());
             exit;
         }
-        
+
         // Si el usuario no está logueado, redirigir al login
         if (!is_user_logged_in()) {
             wp_redirect(wp_login_url($_SERVER['REQUEST_URI']));
             exit;
         }
-        
-        return SIREC_PLUGIN_DIR . 'templates/application-form.php';
+
+        // Usar el template de página por defecto
+        return get_page_template();
     }
     return $template;
 }
-
-/*Shortocde form*/
-add_shortcode('sirec_application_form', 'sirec_application_form_shortcode');
-
-function sirec_application_form_shortcode($atts) {
-    if (!is_user_logged_in()) {
-        return '<div class="alert alert-error">Debes iniciar sesión para acceder a este formulario. <a href="' . wp_login_url($_SERVER['REQUEST_URI']) . '">Iniciar sesión</a></div>';
-    }
-
-    if (!isset($_GET['token'])) {
-        return '<div class="alert alert-error">Token no proporcionado. Acceso denegado.</div>';
-    }
-
-    ob_start();
-
-    include SIREC_PLUGIN_DIR . 'templates/application-form.php';
-
-    return ob_get_clean();
-}
-
-add_action('wp_enqueue_scripts', 'sirec_enqueue_form_assets');
-
-function sirec_enqueue_form_assets() {
-    wp_enqueue_style('sirec-form-style', SIREC_PLUGIN_URL . 'assets/css/form-style.css');
-    wp_enqueue_script('sirec-form-script', SIREC_PLUGIN_URL . 'assets/js/application-form.js', array('jquery'), '1.0', true);
-    
-    wp_localize_script('sirec-form-script', 'sirecAjax', array(
-        'ajaxurl' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('sirec_application_nonce')
-    ));
-}
+add_filter('template_include', 'sirec_handle_custom_page');
