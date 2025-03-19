@@ -53,11 +53,6 @@ function sirec_handle_application_submission() {
         wp_send_json_error('Debes iniciar sesión para enviar una solicitud.');
     }
 
-    if ($application_id) {
-        // Notificar a los editores después de insertar la solicitud
-        notify_editors_of_new_application($application_id, $course_id);
-    }
-    
     $current_user = wp_get_current_user();
     $token = sanitize_text_field($_POST['token']);
     
@@ -72,7 +67,6 @@ function sirec_handle_application_submission() {
     if (!$token_data) {
         wp_send_json_error('Token inválido o no autorizado para este usuario');
     }
-
     // Preparar datos para inserción
     $application_data = array(
         'user_id' => $current_user->ID,

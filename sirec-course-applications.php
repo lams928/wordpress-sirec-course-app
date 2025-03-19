@@ -12,6 +12,7 @@ define('SIREC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SIREC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
 register_activation_hook(__FILE__, 'sirec_activate_plugin');
+add_action('init', 'sirec_register_custom_endpoint');
 
 function sirec_activate_plugin() {
     global $wpdb;
@@ -222,28 +223,29 @@ function sirec_format_buddyboss_notifications($action, $item_id, $secondary_item
 
 /*Shortocde form*/
 function sirec_application_form_shortcode($atts) {
-    // Obtener el token
-    $token = get_query_var('token') ? get_query_var('token') : (isset($_GET['token']) ? $_GET['token'] : '');
-    
+    // Verificar si el usuario está logueado
     if (!is_user_logged_in()) {
         return '<div class="alert alert-error">Debes iniciar sesión para acceder a este formulario. <a href="' . wp_login_url($_SERVER['REQUEST_URI']) . '">Iniciar sesión</a></div>';
     }
 
-
+    // Obtener el token
+    $token = get_query_var('token') ? get_query_var('token') : (isset($_GET['token']) ? $_GET['token'] : '');
+    
     if (empty($token)) {
         return '<div class="alert alert-error">Token no proporcionado. Acceso denegado.</div>';
     }
 
+    // Verificar el token y el usuario
     global $wpdb;
     $token_data = $wpdb->get_row($wpdb->prepare(
         "SELECT * FROM {$wpdb->prefix}sirec_invitation_tokens 
-        WHERE token = %s AND used = 0 AND expires_at > NOW()",
-        $token
+        WHERE token = %s AND used = 0 AND expires_at > NOW() AND user_id = %d",
+        $token,
+        get_current_user_id()
     ));
 
-
     if (!$token_data) {
-        return '<div class="alert alert-error">Token inválido o expirado.</div>';
+        return '<div class="alert alert-error">Token inválido o no autorizado para este usuario.</div>';
     }
 
     $current_user_id = get_current_user_id();
@@ -373,14 +375,33 @@ function sirec_enqueue_form_assets() {
 }
 
 function sirec_register_custom_endpoint() {
+    // Crear la página si no existe
+    $page = get_page_by_path('invitacion-curso');
+    if (!$page) {
+        $page_id = wp_insert_post(array(
+            'post_title'    => 'Invitación Curso',
+            'post_name'     => 'invitacion-curso',
+            'post_status'   => 'publish',
+            'post_type'     => 'page',
+            'post_content'  => '[sirec_application_form]'
+        ));
+    }
+
+    // Agregar reglas de reescritura
     add_rewrite_rule(
-        'invitacion-curso/?$',
+        '^invitacion-curso/?$',
         'index.php?pagename=invitacion-curso',
         'top'
     );
+
+    add_rewrite_rule(
+        '^invitacion-curso/([^/]+)/?$',
+        'index.php?pagename=invitacion-curso&token=$matches[1]',
+        'top'
+    );
+
     flush_rewrite_rules();
 }
-register_activation_hook(__FILE__, 'sirec_register_custom_endpoint');
 
 function sirec_register_query_vars($vars) {
     $vars[] = 'token';
@@ -393,47 +414,45 @@ function sirec_handle_custom_page($template) {
     if (get_query_var('pagename') === 'invitacion-curso') {
         // Verificar si existe la página
         $page = get_page_by_path('invitacion-curso');
-        
         if (!$page) {
-            // Crear la página si no existe
-            $page_data = array(
-                'post_title'    => 'Invitación Curso',
-                'post_name'     => 'invitacion-curso',
-                'post_status'   => 'publish',
-                'post_type'     => 'page',
-                'post_content'  => '[sirec_application_form]'
-            );
-            wp_insert_post($page_data);
+            return $template; // Retornar template normal si la página no existe
         }
-        
-        // Verificar token
-        $token = get_query_var('token') ? get_query_var('token') : (isset($_GET['token']) ? $_GET['token'] : '');
-        
+
+        // Obtener el token
+        $token = get_query_var('token');
         if (empty($token)) {
-            wp_redirect(home_url());
-            exit;
+            $token = isset($_GET['token']) ? $_GET['token'] : '';
         }
 
-        // Si el usuario no está logueado, redirigir al login
-        if (!is_user_logged_in()) {
-            wp_redirect(wp_login_url($_SERVER['REQUEST_URI']));
-            exit;
+        // Si no hay token, mostrar la página normal
+        if (empty($token)) {
+            return get_page_template();
         }
 
-        // Verificar que el token corresponda al usuario actual
+        // Verificar el token
         global $wpdb;
         $token_data = $wpdb->get_row($wpdb->prepare(
-            "SELECT user_id FROM {$wpdb->prefix}sirec_invitation_tokens 
+            "SELECT * FROM {$wpdb->prefix}sirec_invitation_tokens 
             WHERE token = %s AND used = 0 AND expires_at > NOW()",
             $token
         ));
 
-        if (!$token_data || get_current_user_id() !== intval($token_data->user_id)) {
+        if (!$token_data) {
+            return get_page_template();
+        }
+
+        // Si el usuario no está logueado, redirigir al login
+        if (!is_user_logged_in()) {
+            wp_redirect(wp_login_url(add_query_arg('token', $token, get_permalink($page->ID))));
+            exit;
+        }
+
+        // Verificar que el token corresponda al usuario actual
+        if (get_current_user_id() !== intval($token_data->user_id)) {
             wp_redirect(home_url());
             exit;
         }
 
-        // Usar el template de página por defecto
         return get_page_template();
     }
     return $template;
