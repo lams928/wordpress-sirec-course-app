@@ -221,8 +221,8 @@ add_action('init', 'sirec_add_rewrite_rules');
 
 function sirec_add_rewrite_rules() {
     add_rewrite_rule(
-        'solicitud-curso/?$',
-        'index.php?pagename=solicitud-curso',
+        'invitacion-curso/?$',
+        'index.php?pagename=invitacion-curso',
         'top'
     );
 }
@@ -230,7 +230,7 @@ function sirec_add_rewrite_rules() {
 add_filter('template_include', 'sirec_load_application_template');
 
 function sirec_load_application_template($template) {
-    if (get_query_var('pagename') === 'solicitud-curso') {
+    if (get_query_var('pagename') === 'invitacion-curso') {
         if (!isset($_GET['token'])) {
             wp_redirect(home_url());
             exit;
@@ -245,4 +245,35 @@ function sirec_load_application_template($template) {
         return SIREC_PLUGIN_DIR . 'templates/application-form.php';
     }
     return $template;
+}
+
+/*Shortocde form*/
+add_shortcode('sirec_application_form', 'sirec_application_form_shortcode');
+
+function sirec_application_form_shortcode($atts) {
+    if (!is_user_logged_in()) {
+        return '<div class="alert alert-error">Debes iniciar sesión para acceder a este formulario. <a href="' . wp_login_url($_SERVER['REQUEST_URI']) . '">Iniciar sesión</a></div>';
+    }
+
+    if (!isset($_GET['token'])) {
+        return '<div class="alert alert-error">Token no proporcionado. Acceso denegado.</div>';
+    }
+
+    ob_start();
+
+    include SIREC_PLUGIN_DIR . 'templates/application-form.php';
+
+    return ob_get_clean();
+}
+
+add_action('wp_enqueue_scripts', 'sirec_enqueue_form_assets');
+
+function sirec_enqueue_form_assets() {
+    wp_enqueue_style('sirec-form-style', SIREC_PLUGIN_URL . 'assets/css/form-style.css');
+    wp_enqueue_script('sirec-form-script', SIREC_PLUGIN_URL . 'assets/js/application-form.js', array('jquery'), '1.0', true);
+    
+    wp_localize_script('sirec-form-script', 'sirecAjax', array(
+        'ajaxurl' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('sirec_application_nonce')
+    ));
 }

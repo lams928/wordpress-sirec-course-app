@@ -73,7 +73,7 @@ class BP_SIREC_Notification extends BP_Core_Notification_Abstract {
     
             $course_title = get_the_title($item_id);
             // Generar el link del formulario en lugar del link del curso
-            $form_url = home_url('/solicitud-curso/?token=' . $token);
+            $form_url = home_url('/invitacion-curso/?token=' . $token);
             
             $text = sprintf(
                 __('Tienes una invitación pendiente para el curso: %s', 'sirec'),

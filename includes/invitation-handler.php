@@ -107,7 +107,7 @@ function sirec_send_invitation_email($user, $course_id, $custom_message) {
     $subject = sprintf('Invitación al curso: %s', $course->post_title);
     
     // Modified message with unique form link
-    $form_url = home_url('/solicitud-curso/?token=' . $token);
+    $form_url = home_url('/invitacion-curso/?token=' . $token);
     
     $message = sprintf(
         'Hola %s,<br><br>'.
@@ -166,7 +166,7 @@ function sirec_send_sirec_notification($user_id, $course_id) {
 
     if (bp_is_active('activity')) {
         $course_title = get_the_title($course_id);
-        $form_url = home_url('/solicitud-curso/?token=' . $token);
+        $form_url = home_url('/invitacion-curso/?token=' . $token);
         
         bp_activity_add(array(
             'user_id'      => $user_id,
